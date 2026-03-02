@@ -1,13 +1,12 @@
 // ============================================================
 // PAMILI - Root App Component
-// React Router v6 setup + Global Providers
 // ============================================================
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
-import Header from './components/layout/Header';
+import Header, { HEADER_HEIGHT } from './components/layout/Header';
 import ShoppingCart from './components/features/cart/ShoppingCart';
 import SubmitProductForm from './components/features/product/SubmitProductForm';
 import HomePage from './pages/HomePage';
@@ -19,14 +18,22 @@ function AppLayout() {
   const [cartOpen, setCartOpen] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
 
+  // Lock page scroll when any overlay is open.
+  // scrollbar-gutter:stable (set on html in index.css) prevents layout shift.
+  useEffect(() => {
+    const isOpen = cartOpen || submitOpen;
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [cartOpen, submitOpen]);
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div style={{ minHeight: '100vh', backgroundColor: '#f5f6fa' }}>
       <Header
         onCartClick={() => setCartOpen(true)}
         onSubmitClick={() => setSubmitOpen(true)}
       />
 
-      <main className="pt-16">
+      <main style={{ paddingTop: `${HEADER_HEIGHT}px` }}>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/search" element={<SearchPage />} />
@@ -35,6 +42,7 @@ function AppLayout() {
         </Routes>
       </main>
 
+      {/* Overlays — outside main so z-index is clean */}
       <ShoppingCart isOpen={cartOpen} onClose={() => setCartOpen(false)} />
       <SubmitProductForm isOpen={submitOpen} onClose={() => setSubmitOpen(false)} />
     </div>

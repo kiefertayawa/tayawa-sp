@@ -14,56 +14,61 @@ export default function HomePage() {
   const { stores, loading } = useStores();
 
   return (
-    <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-      <div className="mx-auto px-6 py-8" style={{ maxWidth: '1400px' }}>
-
-        {/* Page title */}
-        <div className="mb-5">
-          <h1 className="text-2xl font-bold mb-1" style={{ color: '#8B1538' }}>
-            Stores in Batong Malake
-          </h1>
-          <p className="text-gray-500 text-sm">Compare prices and find the best deals near you</p>
-        </div>
+    <div style={{ backgroundColor: '#f5f6fa', minHeight: '100vh' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
 
         {/* Map Placeholder */}
         <div
-          className="mb-8 rounded-xl overflow-hidden border border-gray-200 bg-gray-100 flex items-center justify-center"
-          style={{ height: '428px' }}
+          style={{
+            marginBottom: '32px',
+            borderRadius: '16px',
+            overflow: 'hidden',
+            border: '1px solid #e5e7eb',
+            backgroundColor: '#e9ecef',
+            height: '400px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
         >
-          <div className="text-center bg-white rounded-xl p-6 shadow-sm" style={{ maxWidth: '340px' }}>
-            <MapPin className="w-12 h-12 mx-auto mb-3" style={{ color: '#8B1538' }} />
-            <h3 className="font-semibold mb-1" style={{ color: '#8B1538' }}>
+          <div
+            style={{
+              textAlign: 'center',
+              backgroundColor: '#fff',
+              borderRadius: '16px',
+              padding: '28px 36px',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+              maxWidth: '340px',
+            }}
+          >
+            <MapPin style={{ width: 48, height: 48, color: '#8B1538', margin: '0 auto 12px' }} />
+            <h3 style={{ fontWeight: 700, color: '#8B1538', marginBottom: '6px', fontSize: '1rem' }}>
               Interactive Map Placeholder
             </h3>
-            <p className="text-sm text-gray-500 mb-1">Google Maps integration would display here</p>
-            <p className="text-xs text-gray-400">Batong Malake, Los Baños, Laguna</p>
-            <p className="text-xs text-gray-300 mt-2 pt-2 border-t border-gray-100">
-              Map pins and markers will appear when integrated
+            <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '4px' }}>
+              Google Maps integration would display here
             </p>
+            <p style={{ fontSize: '0.78rem', color: '#9ca3af' }}>Batong Malake, Los Baños, Laguna</p>
           </div>
         </div>
 
-        {/* Store Cards Grid */}
+        {/* Store grid */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
-                <div className="h-48 bg-gray-200 animate-pulse" />
-                <div className="p-4 space-y-3">
-                  <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4" />
-                  <div className="h-3 bg-gray-100 rounded animate-pulse w-1/2" />
-                  <div className="h-3 bg-gray-100 rounded animate-pulse w-1/3" />
-                  <div className="flex gap-2">
-                    <div className="h-6 bg-gray-100 rounded animate-pulse w-24" />
-                    <div className="h-6 bg-gray-100 rounded animate-pulse w-24" />
-                  </div>
-                  <div className="h-9 bg-gray-200 rounded animate-pulse mt-2" />
+              <div key={i} style={{ backgroundColor: '#fff', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+                <div style={{ height: 200, backgroundColor: '#e5e7eb' }} />
+                <div style={{ padding: '16px' }}>
+                  <div style={{ height: 16, backgroundColor: '#e5e7eb', borderRadius: 6, marginBottom: 10, width: '70%' }} />
+                  <div style={{ height: 12, backgroundColor: '#f3f4f6', borderRadius: 6, marginBottom: 8, width: '50%' }} />
+                  <div style={{ height: 12, backgroundColor: '#f3f4f6', borderRadius: 6, marginBottom: 16, width: '40%' }} />
+                  <div style={{ height: 38, backgroundColor: '#e5e7eb', borderRadius: 10 }} />
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
             {stores.map((store) => (
               <StoreCard
                 key={store._id}
@@ -83,54 +88,78 @@ function StoreCard({ store, onClick }: { store: Store; onClick: () => void }) {
 
   return (
     <div
-      className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
       onClick={onClick}
+      style={{
+        backgroundColor: '#fff',
+        borderRadius: '16px',
+        overflow: 'hidden',
+        boxShadow: '0 1px 6px rgba(0,0,0,0.08)',
+        cursor: 'pointer',
+        transition: 'box-shadow 0.2s',
+        border: '1px solid #f0f0f0',
+      }}
+      onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.12)')}
+      onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 1px 6px rgba(0,0,0,0.08)')}
     >
-      {/* Store image — full width, tall */}
-      <div className="relative overflow-hidden" style={{ height: '200px' }}>
+      {/* Store image */}
+      <div style={{ height: 200, overflow: 'hidden' }}>
         <img
           src={store.image}
           alt={store.name}
-          className="w-full h-full object-cover"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />
       </div>
 
       {/* Card body */}
-      <div className="p-4">
+      <div style={{ padding: '16px' }}>
+
         {/* Name + crowd badge */}
-        <div className="flex items-start justify-between mb-1">
-          <h3 className="font-semibold text-gray-900 text-base leading-tight">{store.name}</h3>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
+          <h3 style={{ fontWeight: 700, fontSize: '1rem', color: '#111827', margin: 0, lineHeight: 1.3 }}>
+            {store.name}
+          </h3>
           <span
-            className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ml-2"
-            style={{ color: crowd.color, backgroundColor: crowd.bg }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '4px',
+              fontSize: '0.72rem', fontWeight: 600,
+              color: crowd.color, backgroundColor: crowd.bg,
+              borderRadius: '999px', padding: '3px 10px',
+              flexShrink: 0, whiteSpace: 'nowrap',
+            }}
           >
-            <Users className="w-3 h-3" />
+            <Users style={{ width: 11, height: 11 }} />
             {crowd.label}
           </span>
         </div>
 
-        {/* Address — teal link color */}
-        <p className="text-xs mb-2" style={{ color: '#0d9488' }}>
+        {/* Address — teal */}
+        <p style={{ fontSize: '0.82rem', color: '#0d9488', margin: '0 0 8px' }}>
           {store.address}
         </p>
 
         {/* Rating */}
-        <div className="flex items-center gap-1 mb-3">
-          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-          <span className="text-sm font-semibold text-gray-800">{store.rating}</span>
-          <span className="text-sm text-gray-400">({store.reviewCount})</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '12px' }}>
+          <Star style={{ width: 15, height: 15, fill: '#facc15', color: '#facc15' }} />
+          <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>{store.rating}</span>
+          <span style={{ fontSize: '0.85rem', color: '#9ca3af' }}>({store.reviewCount})</span>
         </div>
 
         {/* Peak hours */}
         {store.peakHours.length > 0 && (
-          <div className="mb-4">
-            <p className="text-xs text-gray-500 mb-1.5 font-medium">Peak Hours:</p>
-            <div className="flex flex-wrap gap-1.5">
-              {store.peakHours.map((h) => (
+          <div style={{ marginBottom: '16px' }}>
+            <p style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: '6px', fontWeight: 500 }}>
+              Peak Hours:
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {store.peakHours.map(h => (
                 <span
                   key={h}
-                  className="text-xs font-medium px-2.5 py-1 rounded"
-                  style={{ backgroundColor: '#1f2937', color: '#fff' }}
+                  style={{
+                    fontSize: '0.75rem', fontWeight: 500,
+                    color: '#374151', backgroundColor: '#e5e7eb',
+                    borderRadius: '6px', padding: '3px 10px',
+                    border: '1px solid #d1d5db',
+                  }}
                 >
                   {h}
                 </span>
@@ -141,9 +170,14 @@ function StoreCard({ store, onClick }: { store: Store; onClick: () => void }) {
 
         {/* View Store button */}
         <button
-          className="w-full py-2.5 text-sm font-semibold text-white rounded-lg transition-opacity hover:opacity-90"
-          style={{ backgroundColor: '#8B1538' }}
-          onClick={(e) => { e.stopPropagation(); onClick(); }}
+          onClick={e => { e.stopPropagation(); onClick(); }}
+          style={{
+            width: '100%',
+            padding: '11px',
+            fontSize: '0.9rem', fontWeight: 600,
+            color: '#fff', backgroundColor: '#8B1538',
+            border: 'none', borderRadius: '10px', cursor: 'pointer',
+          }}
         >
           View Store
         </button>

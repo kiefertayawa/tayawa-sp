@@ -20,11 +20,6 @@ export default function SubmitProductForm({ isOpen, onClose }: SubmitProductForm
     storeService.getAll().then(res => setStores(res.data.data)).catch(() => { });
   }, []);
 
-  useEffect(() => {
-    document.body.style.overflow = isOpen ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
-  }, [isOpen]);
-
   if (!isOpen) return null;
 
   const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,6 +51,7 @@ export default function SubmitProductForm({ isOpen, onClose }: SubmitProductForm
         setImageFile(null);
       }, 2000);
     } catch {
+      // silent
     } finally {
       setSubmitting(false);
     }
@@ -63,130 +59,236 @@ export default function SubmitProductForm({ isOpen, onClose }: SubmitProductForm
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full flex flex-col" style={{ maxWidth: '560px', maxHeight: '90vh' }}>
-          {/* Header */}
-          <div className="flex items-start justify-between px-6 pt-5 pb-4 flex-shrink-0">
-            <div>
-              <h2 className="text-lg font-bold text-gray-800">Submit Product &amp; Price</h2>
-              <p className="text-sm text-gray-400 mt-0.5">Help the community with price information</p>
-            </div>
-            <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg ml-4 flex-shrink-0">
-              <X className="w-5 h-5 text-gray-400" />
-            </button>
-          </div>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.45)',
+          zIndex: 200,
+        }}
+      />
 
+      {/* Dialog */}
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 201,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+          pointerEvents: 'none',
+        }}
+      >
+        <div
+          style={{
+            backgroundColor: '#fff',
+            borderRadius: '16px',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.15)',
+            width: '100%',
+            maxWidth: '540px',
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            pointerEvents: 'auto',
+          }}
+        >
           {success ? (
-            <div className="p-12 text-center">
-              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-3" />
-              <p className="font-semibold text-green-600 text-lg">Submitted for review!</p>
-              <p className="text-sm text-gray-400 mt-1">Thank you for helping the community.</p>
+            <div style={{ padding: '64px 24px', textAlign: 'center' }}>
+              <CheckCircle style={{ width: 64, height: 64, color: '#16a34a', margin: '0 auto 12px' }} />
+              <p style={{ fontWeight: 600, color: '#15803d', fontSize: '1.125rem' }}>Submitted for review!</p>
+              <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '4px' }}>Thank you for helping the community.</p>
             </div>
           ) : (
-            <>
-              {/* Scrollable body */}
-              <div className="overflow-y-auto flex-1 px-6 pb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d1d5db transparent' }}>
-                <form id="submit-product-form" onSubmit={handleSubmit} className="space-y-5">
-                  {/* Image Upload */}
-                  <div
-                    className="border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-gray-300 transition-colors"
-                    style={{ height: '160px' }}
-                    onClick={() => document.getElementById('prod-img')?.click()}
-                  >
-                    {imagePreview ? (
-                      <img src={imagePreview} alt="Preview" className="h-full w-full object-contain rounded-xl" />
-                    ) : (
-                      <div className="text-center text-gray-400">
-                        <ImagePlus className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-                        <p className="text-sm font-medium">Click to upload product image</p>
-                        <p className="text-xs mt-0.5">PNG, JPG up to 10MB</p>
-                      </div>
-                    )}
-                    <input id="prod-img" type="file" accept="image/*" onChange={handleImage} className="hidden" />
-                  </div>
-
-                  {/* Product Name */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Product Name *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g., Lucky Me Pancit Canton"
-                      value={form.productName}
-                      onChange={e => setForm({ ...form, productName: e.target.value })}
-                      className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:border-gray-300"
-                    />
-                  </div>
-
-                  {/* Store */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Store *</label>
-                    <div className="relative">
-                      <select
-                        required
-                        value={form.storeId}
-                        onChange={e => setForm({ ...form, storeId: e.target.value })}
-                        className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none appearance-none text-gray-500"
-                      >
-                        <option value="">Select a store</option>
-                        {stores.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
-                      </select>
-                      <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Price */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Price (₱) *</label>
-                    <input
-                      type="number"
-                      required
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={form.price}
-                      onChange={e => setForm({ ...form, price: e.target.value })}
-                      className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none"
-                    />
-                    <p className="text-xs text-gray-400 mt-1">Enter the exact price you saw at the store</p>
-                  </div>
-
-                  {/* Guidelines */}
-                  <div className="rounded-xl p-4" style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe' }}>
-                    <p className="text-sm font-semibold mb-2" style={{ color: '#1d4ed8' }}>Before submitting:</p>
-                    {[
-                      'Ensure the price is current and accurate',
-                      'Upload a clear photo of the product',
-                      'Your submission will be reviewed by administrators',
-                      'Approved submissions help fellow students save money',
-                    ].map(tip => (
-                      <div key={tip} className="flex items-start gap-2 text-sm mb-1" style={{ color: '#2563eb' }}>
-                        <span>✓</span> {tip}
-                      </div>
-                    ))}
-                  </div>
-                </form>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+              {/* Header row */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '20px 24px 16px', flexShrink: 0 }}>
+                <div>
+                  <h2 style={{ fontWeight: 700, fontSize: '1.1rem', color: '#111827', margin: 0 }}>Submit Product &amp; Price</h2>
+                  <p style={{ fontSize: '0.875rem', color: '#9ca3af', margin: '4px 0 0' }}>Help the community with price information</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', borderRadius: '6px', color: '#6b7280' }}
+                >
+                  <X style={{ width: 20, height: 20 }} />
+                </button>
               </div>
 
-              {/* Sticky footer buttons */}
-              <div className="flex gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
-                <button type="button" onClick={onClose} className="flex-1 py-3 text-sm font-medium border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50">
+              {/* Scrollable body */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px 8px' }}>
+
+                {/* Image upload */}
+                <div
+                  onClick={() => document.getElementById('prod-img')?.click()}
+                  style={{
+                    border: '2px dashed #e5e7eb',
+                    borderRadius: '12px',
+                    height: '160px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    marginBottom: '20px',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {imagePreview ? (
+                    <img src={imagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  ) : (
+                    <div style={{ textAlign: 'center', color: '#9ca3af' }}>
+                      <ImagePlus style={{ width: 40, height: 40, margin: '0 auto 8px', color: '#d1d5db' }} />
+                      <p style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '2px' }}>Click to upload product image</p>
+                      <p style={{ fontSize: '0.75rem' }}>PNG, JPG up to 10MB</p>
+                    </div>
+                  )}
+                  <input id="prod-img" type="file" accept="image/*" onChange={handleImage} style={{ display: 'none' }} />
+                </div>
+
+                {/* Product Name */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+                    Product Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g., Lucky Me Pancit Canton"
+                    value={form.productName}
+                    onChange={e => setForm({ ...form, productName: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      fontSize: '0.875rem',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '10px',
+                      backgroundColor: '#f9fafb',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+
+                {/* Store */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+                    Store *
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      required
+                      value={form.storeId}
+                      onChange={e => setForm({ ...form, storeId: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        fontSize: '0.875rem',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '10px',
+                        backgroundColor: '#f9fafb',
+                        outline: 'none',
+                        appearance: 'none',
+                        color: form.storeId ? '#374151' : '#9ca3af',
+                        boxSizing: 'border-box',
+                      }}
+                    >
+                      <option value="">Select a store</option>
+                      {stores.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+                    </select>
+                    <svg
+                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, color: '#9ca3af', pointerEvents: 'none' }}
+                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Price */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+                    Price (₱) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={form.price}
+                    onChange={e => setForm({ ...form, price: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      fontSize: '0.875rem',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '10px',
+                      backgroundColor: '#f9fafb',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>Enter the exact price you saw at the store</p>
+                </div>
+
+                {/* Guidelines */}
+                <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '14px', marginBottom: '8px' }}>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1d4ed8', marginBottom: '8px' }}>Before submitting:</p>
+                  {[
+                    'Ensure the price is current and accurate',
+                    'Upload a clear photo of the product',
+                    'Your submission will be reviewed by administrators',
+                    'Approved submissions help fellow students save money',
+                  ].map(tip => (
+                    <div key={tip} style={{ display: 'flex', gap: '8px', fontSize: '0.875rem', color: '#2563eb', marginBottom: '4px' }}>
+                      <span>✓</span> {tip}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sticky footer — inside the form so submit works */}
+              <div style={{ display: 'flex', gap: '12px', padding: '16px 24px', borderTop: '1px solid #f3f4f6', flexShrink: 0 }}>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    color: '#374151',
+                    backgroundColor: '#fff',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                  }}
+                >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  form="submit-product-form"
                   disabled={submitting}
-                  className="flex-1 py-3 text-sm font-semibold text-white rounded-xl disabled:opacity-60"
-                  style={{ backgroundColor: '#8B1538' }}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: '#fff',
+                    backgroundColor: submitting ? '#c084a0' : '#8B1538',
+                    border: 'none',
+                    borderRadius: '10px',
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                  }}
                 >
                   {submitting ? 'Submitting...' : 'Submit'}
                 </button>
               </div>
-            </>
+            </form>
           )}
         </div>
       </div>

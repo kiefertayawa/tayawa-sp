@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Search, MapPin, Upload, LogOut } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { ShoppingCart, Search, Upload, LogOut } from 'lucide-react';
+
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -9,11 +10,17 @@ interface HeaderProps {
   onSubmitClick: () => void;
 }
 
+const H = 68; // header height in px
+
 export default function Header({ onCartClick, onSubmitClick }: HeaderProps) {
   const [searchInput, setSearchInput] = useState('');
   const { totalItems } = useCart();
   const { isAdmin, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // On the /admin route, show only the logo — no user-facing controls
+  const isAdminRoute = location.pathname.startsWith('/admin');
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,50 +31,139 @@ export default function Header({ onCartClick, onSubmitClick }: HeaderProps) {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-50" style={{height:'56px'}}>
-      <div className="h-full px-6 flex items-center justify-between gap-4">
-        <Link to="/" className="flex items-center gap-1.5 flex-shrink-0 hover:opacity-80 transition-opacity">
-          <MapPin className="w-5 h-5" style={{color:'#8B1538'}} />
-          <span className="text-xl font-bold" style={{color:'#8B1538'}}>PAMILI</span>
+    <header
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: `${H}px`,
+        backgroundColor: '#ffffff',
+        borderBottom: '1px solid #e5e7eb',
+        zIndex: 100,
+        display: 'grid',
+        // 3-column grid: logo | search | actions
+        gridTemplateColumns: '1fr auto 1fr',
+        alignItems: 'center',
+        padding: '0 24px',
+        gap: '16px',
+      }}
+    >
+      {/* Col 1 — Logo (left-aligned) */}
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+          <img
+            src="/pamili-logo.png"
+            alt="PAMILI"
+            style={{ height: '36px', width: 'auto', objectFit: 'contain' }}
+          />
         </Link>
+      </div>
 
-        {!isAdmin && (
-          <form onSubmit={handleSearch} className="flex-1" style={{maxWidth:'580px'}}>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search for products (e.g., rice, eggs, notebooks)..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:outline-none"
-              />
-            </div>
-          </form>
-        )}
+      {/* Col 2 — Search bar (hidden on /admin) */}
+      {!isAdminRoute && !isAdmin ? (
+        <form onSubmit={handleSearch} style={{ width: '560px' }}>
+          <div style={{ position: 'relative' }}>
+            <Search
+              style={{
+                position: 'absolute',
+                left: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: '#9ca3af',
+                width: 16,
+                height: 16,
+                pointerEvents: 'none',
+              }}
+            />
+            <input
+              type="text"
+              placeholder="Search for products (e.g., rice, eggs, notebooks)..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              style={{
+                width: '100%',
+                paddingLeft: '38px',
+                paddingRight: '16px',
+                paddingTop: '9px',
+                paddingBottom: '9px',
+                fontSize: '0.875rem',
+                border: '1.5px solid #e5e7eb',
+                borderRadius: '10px',
+                backgroundColor: '#f9fafb',
+                outline: 'none',
+                color: '#374151',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        </form>
+      ) : (
+        <div /> /* empty centre col */
+      )}
 
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {isAdmin ? (
-            <button onClick={logout} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg" style={{backgroundColor:'#8B1538'}}>
-              <LogOut className="w-4 h-4" /> Logout
+      {/* Col 3 — Actions (hidden on /admin login, Logout when authenticated admin) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'flex-end' }}>
+        {isAdmin ? (
+          <button
+            onClick={logout}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '9px 18px',
+              fontSize: '0.875rem', fontWeight: 600,
+              color: '#ffffff', backgroundColor: '#8B1538',
+              border: 'none', borderRadius: '10px', cursor: 'pointer',
+            }}
+          >
+            <LogOut style={{ width: 16, height: 16 }} /> Logout
+          </button>
+        ) : !isAdminRoute ? (
+          <>
+            <button
+              onClick={onSubmitClick}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '9px 18px',
+                fontSize: '0.875rem', fontWeight: 600,
+                color: '#ffffff', backgroundColor: '#8B1538',
+                border: 'none', borderRadius: '10px', cursor: 'pointer',
+              }}
+            >
+              <Upload style={{ width: 16, height: 16 }} /> Add Product
             </button>
-          ) : (
-            <>
-              <button onClick={onSubmitClick} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg hover:opacity-90" style={{backgroundColor:'#8B1538'}}>
-                <Upload className="w-4 h-4" /> Add Product
-              </button>
-              <button onClick={onCartClick} className="relative flex items-center gap-2 px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700">
-                <ShoppingCart className="w-4 h-4" /> Cart
-                {totalItems > 0 && (
-                  <span className="absolute -top-2 -right-2 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1 font-bold" style={{backgroundColor:'#8B1538'}}>
-                    {totalItems}
-                  </span>
-                )}
-              </button>
-            </>
-          )}
-        </div>
+
+            <button
+              onClick={onCartClick}
+              style={{
+                position: 'relative',
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '9px 16px',
+                fontSize: '0.875rem', fontWeight: 500,
+                color: '#374151', backgroundColor: 'transparent',
+                border: '1.5px solid #e5e7eb', borderRadius: '10px', cursor: 'pointer',
+              }}
+            >
+              <ShoppingCart style={{ width: 17, height: 17 }} /> Cart
+              {totalItems > 0 && (
+                <span
+                  style={{
+                    position: 'absolute', top: '-8px', right: '-8px',
+                    backgroundColor: '#8B1538', color: '#fff',
+                    fontSize: '0.68rem', fontWeight: 700,
+                    borderRadius: '9999px', minWidth: '20px', height: '20px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '0 4px',
+                  }}
+                >
+                  {totalItems}
+                </span>
+              )}
+            </button>
+          </>
+        ) : null /* /admin login: no actions shown */}
       </div>
     </header>
   );
 }
+
+export { H as HEADER_HEIGHT };

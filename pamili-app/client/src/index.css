@@ -2,16 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design tokens ───────────────────────────────────────── */
 :root {
   --maroon-600: #8B1538;
   --maroon-700: #6B0F2A;
+  --font-sans: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
 }
 
-* {
+/* ── Global font reset — applies to EVERY element ─────────
+   Using * instead of just body ensures buttons, inputs,
+   selects, and all other replaced / form elements inherit
+   Inter rather than falling back to browser defaults.
+   ─────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+  font-family: var(--font-sans);
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  scrollbar-gutter: stable;
 }
 
 body {
-  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+}
+
+/* Ensure form elements always inherit the font */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
 }
