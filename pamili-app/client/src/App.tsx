@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { LoadScript } from '@react-google-maps/api';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 import Header, { HEADER_HEIGHT } from './components/layout/Header';
@@ -54,7 +55,13 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <CartProvider>
-          <AppLayout />
+          {/* Load Google Maps script ONCE here so all map components are instant */}
+          <LoadScript
+            googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string}
+            loadingElement={<></>}  /* silent — pages render while maps load */
+          >
+            <AppLayout />
+          </LoadScript>
         </CartProvider>
       </AuthProvider>
     </BrowserRouter>

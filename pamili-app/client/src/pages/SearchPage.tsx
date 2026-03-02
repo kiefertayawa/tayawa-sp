@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, MapPin, Star, Users, ShoppingCart, Store,
@@ -8,6 +8,7 @@ import { useProductSearch, useStores } from '../hooks';
 import { useCart } from '../context/CartContext';
 import { HEADER_HEIGHT } from '../components/layout/Header';
 import type { Product, Store as StoreType } from '../types';
+import SearchMap from '../components/maps/SearchMap';
 
 // ─── crowd badge config (matches Store.crowdLevel) ────────────
 const crowdCfg: Record<string, { color: string; bg: string; label: string }> = {
@@ -63,7 +64,11 @@ export default function SearchPage() {
 
   const [filters, setFilters] = useState<Filters>(DEFAULT);
   const [showPanel, setShowPanel] = useState(false);
+  const [highlightedStoreId, setHighlightedStoreId] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  // Refs to each store card so we can scroll to them
+  const storeCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const resultsScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { if (query) search(query); }, [query]); // eslint-disable-line
 
@@ -75,6 +80,17 @@ export default function SearchPage() {
     };
     document.addEventListener('mousedown', fn);
     return () => document.removeEventListener('mousedown', fn);
+  }, []);
+
+  // When a map pin is clicked: highlight + scroll to the store card
+  const handlePinClick = useCallback((storeId: string) => {
+    setHighlightedStoreId(storeId);
+    const card = storeCardRefs.current[storeId];
+    if (card && resultsScrollRef.current) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    // Clear highlight after 2 s
+    setTimeout(() => setHighlightedStoreId(prev => prev === storeId ? null : prev), 2000);
   }, []);
 
   // build store lookup
@@ -208,31 +224,21 @@ export default function SearchPage() {
               </p>
             </div>
 
-            {/* Gray map area — mount real map component here */}
+            {/* Real Google Map */}
             <div
               style={{
                 flex: 1,
-                backgroundColor: '#e0e3e8',
                 position: 'relative',
                 overflow: 'hidden',
-                /*
-                  TODO: Replace this div with your map component, e.g.:
-                  <GoogleMap
-                    center={{ lat: 14.1664, lng: 121.2417 }}
-                    zoom={15}
-                    stores={groups.map(g => g.storeData).filter(Boolean)}
-                    onStoreClick={id => navigate(`/store/${id}`)}
-                  />
-                */
               }}
             >
-              {/* Faint placeholder icon — remove when real map is mounted */}
-              <MapPin
-                style={{
-                  position: 'absolute', top: '50%', left: '50%',
-                  transform: 'translate(-50%,-50%)',
-                  width: 40, height: 40, color: '#8B1538', opacity: 0.15,
-                }}
+              <SearchMap
+                pins={groups.filter(g => g.storeData).map(g => ({
+                  store: g.storeData!,
+                  price: Math.min(...g.products.map(p => p.price))
+                }))}
+                onStoreClick={handlePinClick}
+                highlightedStoreId={highlightedStoreId}
               />
             </div>
 
@@ -339,7 +345,7 @@ export default function SearchPage() {
             </div>
 
             {/* ── ONLY THIS SCROLLS ── */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 22px 24px' }}>
+            <div ref={resultsScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '16px 22px 24px' }}>
               {loading ? (
                 [...Array(3)].map((_, i) => (
                   <div key={i} style={{ height: 190, backgroundColor: '#f3f4f6', borderRadius: 14, marginBottom: 16, animation: 'pulse 1.5s ease-in-out infinite' }} />
@@ -357,7 +363,18 @@ export default function SearchPage() {
                   {groups.map(({ storeId, storeName, storeData, products }) => {
                     const crowd = crowdCfg[storeData?.crowdLevel ?? 'medium'];
                     return (
-                      <div key={storeId} style={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '14px', overflow: 'hidden' }}>
+                      <div
+                        key={storeId}
+                        ref={el => { storeCardRefs.current[storeId] = el; }}
+                        style={{
+                          backgroundColor: '#fff',
+                          border: highlightedStoreId === storeId ? '2px solid #8B1538' : '1px solid #e5e7eb',
+                          borderRadius: '14px',
+                          overflow: 'hidden',
+                          boxShadow: highlightedStoreId === storeId ? '0 0 0 3px rgba(139,21,56,0.12)' : 'none',
+                          transition: 'border 0.2s, box-shadow 0.2s',
+                        }}
+                      >
                         {/* Store header */}
                         <div style={{ padding: '15px 20px', borderBottom: '1px solid #f3f4f6' }}>
                           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '6px' }}>

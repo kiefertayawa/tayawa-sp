@@ -9,6 +9,7 @@
     "seed": "node seed/seed.js"
   },
   "dependencies": {
+    "@react-google-maps/api": "^2.20.8",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dns": "^0.2.2",

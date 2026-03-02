@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Star, Users } from 'lucide-react';
+import { Star, Users } from 'lucide-react';
 import { useStores } from '../hooks';
 import type { Store } from '../types';
+import HomeMap from '../components/maps/HomeMap';
 
 const crowdConfig = {
   low: { color: '#16a34a', bg: '#dcfce7', label: 'Low Traffic' },
@@ -17,39 +18,17 @@ export default function HomePage() {
     <div style={{ backgroundColor: '#f5f6fa', minHeight: '100vh' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
 
-        {/* Map Placeholder */}
+        {/* Google Map */}
         <div
           style={{
             marginBottom: '32px',
             borderRadius: '16px',
             overflow: 'hidden',
             border: '1px solid #e5e7eb',
-            backgroundColor: '#e9ecef',
-            height: '400px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            height: '560px',
           }}
         >
-          <div
-            style={{
-              textAlign: 'center',
-              backgroundColor: '#fff',
-              borderRadius: '16px',
-              padding: '28px 36px',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-              maxWidth: '340px',
-            }}
-          >
-            <MapPin style={{ width: 48, height: 48, color: '#8B1538', margin: '0 auto 12px' }} />
-            <h3 style={{ fontWeight: 700, color: '#8B1538', marginBottom: '6px', fontSize: '1rem' }}>
-              Interactive Map Placeholder
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '4px' }}>
-              Google Maps integration would display here
-            </p>
-            <p style={{ fontSize: '0.78rem', color: '#9ca3af' }}>Batong Malake, Los Baños, Laguna</p>
-          </div>
+          <HomeMap stores={stores} height="560px" />
         </div>
 
         {/* Store grid */}

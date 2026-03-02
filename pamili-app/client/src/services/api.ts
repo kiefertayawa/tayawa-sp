@@ -1,88 +1,210 @@
 // ============================================================
 // PAMILI - API Service Layer
-// All calls go through here. Swap mock data for real endpoints
-// when your Express/Node backend is ready.
+// Currently wired to mock data for frontend development.
+// To switch to the real backend, set USE_MOCK = false and
+// ensure VITE_API_URL is set to your Express server URL.
 // ============================================================
 
-import axios from 'axios';
 import type { Product, Store, Review, PendingProduct, ApiResponse } from '../types';
+import {
+  MOCK_STORES,
+  MOCK_PRODUCTS,
+  MOCK_REVIEWS,
+  MOCK_PENDING_PRODUCTS,
+  MOCK_PENDING_REVIEWS,
+} from './mockData';
 
-// Set this to your Express server URL (e.g. http://localhost:5000/api)
+// ── Toggle this to false when your backend is ready ──────────
+const USE_MOCK = true;
+
+// ── Simulates a network delay (ms) ───────────────────────────
+const MOCK_DELAY = 400;
+
+// ── Helper: wrap mock data in Axios-like response shape ──────
+function mockResponse<T>(data: T): Promise<{ data: ApiResponse<T> }> {
+  return new Promise((resolve) =>
+    setTimeout(
+      () => resolve({ data: { success: true, data } }),
+      MOCK_DELAY,
+    ),
+  );
+}
+
+// ─── Real axios instance (used when USE_MOCK = false) ────────
+import axios from 'axios';
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
-  withCredentials: true, // for JWT cookie auth
+  withCredentials: true,
 });
-
-// Attach auth token from localStorage if present
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('pamili_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// ─── Products ─────────────────────────────────────────────
+// ─── Products ─────────────────────────────────────────────────
+
 export const productService = {
-  search: (query: string) =>
-    api.get<ApiResponse<Product[]>>(`/products/search?q=${encodeURIComponent(query)}`),
+  search: (query: string) => {
+    if (USE_MOCK) {
+      const q = query.toLowerCase();
+      const filtered = MOCK_PRODUCTS.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.category.toLowerCase().includes(q),
+      );
+      return mockResponse(filtered);
+    }
+    return api.get<ApiResponse<Product[]>>(`/products/search?q=${encodeURIComponent(query)}`);
+  },
 
-  getAll: () =>
-    api.get<ApiResponse<Product[]>>('/products'),
+  getAll: () => {
+    if (USE_MOCK) return mockResponse(MOCK_PRODUCTS);
+    return api.get<ApiResponse<Product[]>>('/products');
+  },
 
-  getById: (id: string) =>
-    api.get<ApiResponse<Product>>(`/products/${id}`),
+  getById: (id: string) => {
+    if (USE_MOCK) {
+      const product = MOCK_PRODUCTS.find((p) => p._id === id) ?? null;
+      return mockResponse(product as Product);
+    }
+    return api.get<ApiResponse<Product>>(`/products/${id}`);
+  },
 
-  submit: (data: FormData) =>
-    api.post<ApiResponse<PendingProduct>>('/products/submit', data, {
+  submit: (_data: FormData) => {
+    if (USE_MOCK) {
+      // Simulate a successful submission
+      const pending: PendingProduct = {
+        _id: `pend-${Date.now()}`,
+        name: _data.get('name') as string,
+        category: 'Uncategorized',
+        storeName: 'Unknown Store',
+        storeId: _data.get('storeId') as string,
+        price: parseFloat(_data.get('price') as string) || 0,
+        submittedBy: 'Anonymous Student',
+        submittedDate: new Date().toISOString().split('T')[0],
+        status: 'pending',
+      };
+      return mockResponse(pending);
+    }
+    return api.post<ApiResponse<PendingProduct>>('/products/submit', _data, {
       headers: { 'Content-Type': 'multipart/form-data' },
-    }),
+    });
+  },
 };
 
-// ─── Stores ───────────────────────────────────────────────
+// ─── Stores ───────────────────────────────────────────────────
+
 export const storeService = {
-  getAll: () =>
-    api.get<ApiResponse<Store[]>>('/stores'),
+  getAll: () => {
+    if (USE_MOCK) return mockResponse(MOCK_STORES);
+    return api.get<ApiResponse<Store[]>>('/stores');
+  },
 
-  getById: (id: string) =>
-    api.get<ApiResponse<Store>>(`/stores/${id}`),
+  getById: (id: string) => {
+    if (USE_MOCK) {
+      const store = MOCK_STORES.find((s) => s._id === id) ?? null;
+      return mockResponse(store as Store);
+    }
+    return api.get<ApiResponse<Store>>(`/stores/${id}`);
+  },
 
-  getProducts: (storeId: string) =>
-    api.get<ApiResponse<Product[]>>(`/stores/${storeId}/products`),
+  getProducts: (storeId: string) => {
+    if (USE_MOCK) {
+      const products = MOCK_PRODUCTS.filter((p) =>
+        p.prices.some((pr) => pr.storeId === storeId),
+      );
+      return mockResponse(products);
+    }
+    return api.get<ApiResponse<Product[]>>(`/stores/${storeId}/products`);
+  },
 };
 
-// ─── Reviews ──────────────────────────────────────────────
+// ─── Reviews ──────────────────────────────────────────────────
+
 export const reviewService = {
-  getByStore: (storeId: string) =>
-    api.get<ApiResponse<Review[]>>(`/reviews?storeId=${storeId}`),
+  getByStore: (storeId: string) => {
+    if (USE_MOCK) {
+      const reviews = MOCK_REVIEWS.filter(
+        (r) => r.storeId === storeId && r.status === 'approved',
+      );
+      return mockResponse(reviews);
+    }
+    return api.get<ApiResponse<Review[]>>(`/reviews?storeId=${storeId}`);
+  },
 
-  submit: (data: { storeId: string; rating: number; text: string }) =>
-    api.post<ApiResponse<Review>>('/reviews', data),
+  submit: (data: { storeId: string; rating: number; text: string }) => {
+    if (USE_MOCK) {
+      const review: Review = {
+        _id: `rev-${Date.now()}`,
+        userName: 'Anonymous Student',
+        date: new Date().toISOString().split('T')[0],
+        status: 'pending',
+        ...data,
+      };
+      return mockResponse(review);
+    }
+    return api.post<ApiResponse<Review>>('/reviews', data);
+  },
 };
 
-// ─── Admin ────────────────────────────────────────────────
+// ─── Admin ────────────────────────────────────────────────────
+
 export const adminService = {
-  getPendingProducts: () =>
-    api.get<ApiResponse<PendingProduct[]>>('/admin/products/pending'),
+  getPendingProducts: () => {
+    if (USE_MOCK) return mockResponse([...MOCK_PENDING_PRODUCTS]);
+    return api.get<ApiResponse<PendingProduct[]>>('/admin/products/pending');
+  },
 
-  approveProduct: (id: string) =>
-    api.patch<ApiResponse<PendingProduct>>(`/admin/products/${id}/approve`),
+  approveProduct: (id: string) => {
+    if (USE_MOCK) {
+      const p = MOCK_PENDING_PRODUCTS.find((x) => x._id === id)!;
+      return mockResponse({ ...p, status: 'approved' as const });
+    }
+    return api.patch<ApiResponse<PendingProduct>>(`/admin/products/${id}/approve`);
+  },
 
-  rejectProduct: (id: string) =>
-    api.patch<ApiResponse<PendingProduct>>(`/admin/products/${id}/reject`),
+  rejectProduct: (id: string) => {
+    if (USE_MOCK) {
+      const p = MOCK_PENDING_PRODUCTS.find((x) => x._id === id)!;
+      return mockResponse({ ...p, status: 'rejected' as const });
+    }
+    return api.patch<ApiResponse<PendingProduct>>(`/admin/products/${id}/reject`);
+  },
 
-  getPendingReviews: () =>
-    api.get<ApiResponse<Review[]>>('/admin/reviews/pending'),
+  getPendingReviews: () => {
+    if (USE_MOCK) return mockResponse([...MOCK_PENDING_REVIEWS]);
+    return api.get<ApiResponse<Review[]>>('/admin/reviews/pending');
+  },
 
-  approveReview: (id: string) =>
-    api.patch<ApiResponse<Review>>(`/admin/reviews/${id}/approve`),
+  approveReview: (id: string) => {
+    if (USE_MOCK) {
+      const r = MOCK_PENDING_REVIEWS.find((x) => x._id === id)!;
+      return mockResponse({ ...r, status: 'approved' as const });
+    }
+    return api.patch<ApiResponse<Review>>(`/admin/reviews/${id}/approve`);
+  },
 
-  rejectReview: (id: string) =>
-    api.patch<ApiResponse<Review>>(`/admin/reviews/${id}/reject`),
+  rejectReview: (id: string) => {
+    if (USE_MOCK) {
+      const r = MOCK_PENDING_REVIEWS.find((x) => x._id === id)!;
+      return mockResponse({ ...r, status: 'rejected' as const });
+    }
+    return api.patch<ApiResponse<Review>>(`/admin/reviews/${id}/reject`);
+  },
 
-  login: (credentials: { username: string; password: string }) =>
-    api.post<ApiResponse<{ token: string }>>('/admin/login', credentials),
+  login: (credentials: { username: string; password: string }) => {
+    if (USE_MOCK) {
+      // Mock admin credentials: admin / admin123
+      if (credentials.username === 'admin' && credentials.password === 'admin123') {
+        return mockResponse({ token: 'mock-admin-token' });
+      }
+      return Promise.reject(new Error('Invalid credentials'));
+    }
+    return api.post<ApiResponse<{ token: string }>>('/admin/login', credentials);
+  },
 };
 
 export default api;
