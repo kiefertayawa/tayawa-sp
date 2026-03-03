@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Plus, Minus, Trash2, ShoppingBag } from 'lucide-react';
+import { X, Plus, Minus, Trash2, ShoppingBag, Check } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 
 interface ShoppingCartProps {
@@ -8,7 +8,17 @@ interface ShoppingCartProps {
 }
 
 export default function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
-  const { items, updateQuantity, removeItem, clearCart, subtotal, totalItems } = useCart();
+  const {
+    items,
+    updateQuantity,
+    removeItem,
+    toggleItemSelection,
+    toggleStoreSelection,
+    toggleAllSelection,
+    clearCart,
+    subtotal,
+    totalItems
+  } = useCart();
 
   // ── Slide animation state ────────────────────────────────────────────────
   // `mounted`  — whether the DOM node exists
@@ -109,6 +119,46 @@ export default function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
           </button>
         </div>
 
+        {/* Global Select All Toggle */}
+        {items.length > 0 && (
+          <div
+            style={{
+              padding: '12px 20px',
+              backgroundColor: '#f9fafb',
+              borderBottom: '1px solid #f3f4f6',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              cursor: 'pointer'
+            }}
+            onClick={() => {
+              const allSelected = items.every(i => i.selected !== false);
+              toggleAllSelection(!allSelected);
+            }}
+          >
+            <div
+              style={{
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                border: `2px solid ${items.every(i => i.selected !== false) ? '#8B1538' : '#d1d5db'}`,
+                backgroundColor: items.every(i => i.selected !== false) ? '#8B1538' : 'transparent',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s',
+                flexShrink: 0
+              }}
+            >
+              {items.every(i => i.selected !== false) && <Check style={{ width: 12, height: 12, color: '#fff' }} />}
+            </div>
+            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>Select All Items</span>
+            <span style={{ fontSize: '0.75rem', color: '#9ca3af', marginLeft: 'auto' }}>
+              {items.filter(i => i.selected !== false).length} of {items.length} selected
+            </span>
+          </div>
+        )}
+
         {/* Scrollable items */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
           {items.length === 0 ? (
@@ -126,7 +176,37 @@ export default function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
                     key={storeName}
                     style={{ border: '1px solid #f3f4f6', borderRadius: '12px', overflow: 'hidden' }}
                   >
-                    <div style={{ padding: '12px 16px', backgroundColor: '#fff' }}>
+                    <div
+                      style={{
+                        padding: '12px 16px',
+                        backgroundColor: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => {
+                        const allSelected = storeItems.every(i => i.selected !== false);
+                        const storeId = storeItems[0]?.storeId;
+                        if (storeId) toggleStoreSelection(storeId, !allSelected);
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          border: `2px solid ${storeItems.every(i => i.selected !== false) ? '#8B1538' : '#d1d5db'}`,
+                          backgroundColor: storeItems.every(i => i.selected !== false) ? '#8B1538' : 'transparent',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.2s',
+                          flexShrink: 0
+                        }}
+                      >
+                        {storeItems.every(i => i.selected !== false) && <Check style={{ width: 12, height: 12, color: '#fff' }} />}
+                      </div>
                       <p style={{ fontWeight: 600, fontSize: '0.95rem', color: '#8B1538', margin: 0 }}>{storeName}</p>
                     </div>
 
@@ -141,10 +221,28 @@ export default function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
                           borderTop: '1px solid #f9fafb',
                         }}
                       >
+                        <div
+                          onClick={() => toggleItemSelection(item.productId, item.storeId)}
+                          style={{
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            border: `2px solid ${item.selected !== false ? '#8B1538' : '#d1d5db'}`,
+                            backgroundColor: item.selected !== false ? '#8B1538' : 'transparent',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            flexShrink: 0
+                          }}
+                        >
+                          {item.selected !== false && <Check style={{ width: 12, height: 12, color: '#fff' }} />}
+                        </div>
                         <img
                           src={item.image?.trim() || 'https://placehold.co/400x400?text=No+Image+Available'}
                           alt={item.productName}
-                          style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: '8px', flexShrink: 0 }}
+                          style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: '8px', flexShrink: 0, opacity: item.selected === false ? 0.6 : 1 }}
                           onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available')}
                         />
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -175,7 +273,14 @@ export default function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
                           >
                             <Trash2 style={{ width: 16, height: 16, color: '#8B1538' }} />
                           </button>
-                          <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>₱{(item.price * item.quantity).toFixed(2)}</p>
+                          <p style={{
+                            fontSize: '0.875rem',
+                            fontWeight: 600,
+                            color: item.selected === false ? '#9ca3af' : '#111827',
+                            textDecoration: item.selected === false ? 'line-through' : 'none'
+                          }}>
+                            ₱{(item.price * item.quantity).toFixed(2)}
+                          </p>
                         </div>
                       </div>
                     ))}

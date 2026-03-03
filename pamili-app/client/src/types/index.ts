@@ -51,6 +51,7 @@ export interface CartItem {
   price: number;
   quantity: number;
   image: string;
+  selected?: boolean;
 }
 
 export interface Review {

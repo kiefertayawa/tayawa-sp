@@ -15,6 +15,9 @@ type CartAction =
   | { type: 'ADD_ITEM'; payload: Omit<CartItem, 'quantity'> }
   | { type: 'UPDATE_QUANTITY'; payload: { productId: string; storeId: string; quantity: number } }
   | { type: 'REMOVE_ITEM'; payload: { productId: string; storeId: string } }
+  | { type: 'TOGGLE_ITEM_SELECTION'; payload: { productId: string; storeId: string } }
+  | { type: 'TOGGLE_STORE_SELECTION'; payload: { storeId: string; selected: boolean } }
+  | { type: 'TOGGLE_ALL_SELECTION'; payload: boolean }
   | { type: 'CLEAR_CART' }
   | { type: 'LOAD_CART'; payload: CartItem[] };
 
@@ -33,7 +36,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
           ),
         };
       }
-      return { items: [...state.items, { ...action.payload, quantity: 1 }] };
+      return { items: [...state.items, { ...action.payload, quantity: 1, selected: true }] };
     }
     case 'UPDATE_QUANTITY': {
       const { productId, storeId, quantity } = action.payload;
@@ -56,6 +59,26 @@ function cartReducer(state: CartState, action: CartAction): CartState {
           (i) => !(i.productId === action.payload.productId && i.storeId === action.payload.storeId)
         ),
       };
+    case 'TOGGLE_ITEM_SELECTION': {
+      const { productId, storeId } = action.payload;
+      return {
+        items: state.items.map((i) =>
+          i.productId === productId && i.storeId === storeId ? { ...i, selected: !i.selected } : i
+        ),
+      };
+    }
+    case 'TOGGLE_STORE_SELECTION': {
+      const { storeId, selected } = action.payload;
+      return {
+        items: state.items.map((i) =>
+          i.storeId === storeId ? { ...i, selected } : i
+        ),
+      };
+    }
+    case 'TOGGLE_ALL_SELECTION':
+      return {
+        items: state.items.map((i) => ({ ...i, selected: action.payload })),
+      };
     case 'CLEAR_CART':
       return { items: [] };
     case 'LOAD_CART':
@@ -69,6 +92,9 @@ interface CartContextValue extends CartState {
   addItem: (item: Omit<CartItem, 'quantity'>) => void;
   updateQuantity: (productId: string, storeId: string, quantity: number) => void;
   removeItem: (productId: string, storeId: string) => void;
+  toggleItemSelection: (productId: string, storeId: string) => void;
+  toggleStoreSelection: (storeId: string, selected: boolean) => void;
+  toggleAllSelection: (selected: boolean) => void;
   clearCart: () => void;
   totalItems: number;
   subtotal: number;
@@ -85,7 +111,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (saved) {
       try {
         dispatch({ type: 'LOAD_CART', payload: JSON.parse(saved) });
-      } catch {}
+      } catch { }
     }
   }, []);
 
@@ -93,8 +119,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('pamili_cart', JSON.stringify(state.items));
   }, [state.items]);
 
-  const totalItems = state.items.reduce((sum, i) => sum + i.quantity, 0);
-  const subtotal = state.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const totalItems = state.items.reduce((sum, i) => i.selected !== false ? sum + i.quantity : sum, 0);
+  const subtotal = state.items.reduce((sum, i) => i.selected !== false ? sum + (i.price * i.quantity) : sum, 0);
 
   return (
     <CartContext.Provider
@@ -105,6 +131,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           dispatch({ type: 'UPDATE_QUANTITY', payload: { productId, storeId, quantity } }),
         removeItem: (productId, storeId) =>
           dispatch({ type: 'REMOVE_ITEM', payload: { productId, storeId } }),
+        toggleItemSelection: (productId, storeId) =>
+          dispatch({ type: 'TOGGLE_ITEM_SELECTION', payload: { productId, storeId } }),
+        toggleStoreSelection: (storeId, selected) =>
+          dispatch({ type: 'TOGGLE_STORE_SELECTION', payload: { storeId, selected } }),
+        toggleAllSelection: (selected) =>
+          dispatch({ type: 'TOGGLE_ALL_SELECTION', payload: selected }),
         clearCart: () => dispatch({ type: 'CLEAR_CART' }),
         totalItems,
         subtotal,
