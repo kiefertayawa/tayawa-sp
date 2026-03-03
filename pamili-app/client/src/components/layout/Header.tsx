@@ -102,22 +102,9 @@ export default function Header({ onCartClick, onSubmitClick }: HeaderProps) {
         <div /> /* empty centre col */
       )}
 
-      {/* Col 3 — Actions (hidden on /admin login, Logout when authenticated admin) */}
+      {/* Col 3 — Actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'flex-end' }}>
-        {isAdmin ? (
-          <button
-            onClick={logout}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              padding: '9px 18px',
-              fontSize: '0.875rem', fontWeight: 600,
-              color: '#ffffff', backgroundColor: '#8B1538',
-              border: 'none', borderRadius: '10px', cursor: 'pointer',
-            }}
-          >
-            <LogOut style={{ width: 16, height: 16 }} /> Logout
-          </button>
-        ) : !isAdminRoute ? (
+        {!isAdminRoute && (
           <>
             <button
               onClick={onSubmitClick}
@@ -160,7 +147,22 @@ export default function Header({ onCartClick, onSubmitClick }: HeaderProps) {
               )}
             </button>
           </>
-        ) : null /* /admin login: no actions shown */}
+        )}
+
+        {isAdmin && isAdminRoute && (
+          <button
+            onClick={logout}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '9px 18px',
+              fontSize: '0.875rem', fontWeight: 600,
+              color: '#ffffff', backgroundColor: '#8B1538',
+              border: 'none', borderRadius: '10px', cursor: 'pointer',
+            }}
+          >
+            <LogOut style={{ width: 16, height: 16 }} /> Logout
+          </button>
+        )}
       </div>
     </header>
   );

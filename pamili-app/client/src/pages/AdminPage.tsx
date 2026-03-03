@@ -18,7 +18,7 @@ export default function AdminPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const ok = await login(username, password);
-    if (!ok) setLoginError('Invalid credentials. Try admin / admin123');
+    if (!ok) setLoginError('Invalid credentials. Try admin / pamili_admin_2024');
   };
 
   // ── Login screen ──────────────────────────────────────────

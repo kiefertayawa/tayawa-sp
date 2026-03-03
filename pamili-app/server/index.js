@@ -6,22 +6,38 @@ const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
 
 require('dotenv').config();
-const express   = require('express');
-const mongoose  = require('mongoose');
-const cors      = require('cors');
-const path      = require('path');
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const path = require('path');
 
-const storeRoutes   = require('./routes/stores');
+const storeRoutes = require('./routes/stores');
 const productRoutes = require('./routes/products');
-const reviewRoutes  = require('./routes/reviews');
-const adminRoutes   = require('./routes/admin');
+const reviewRoutes = require('./routes/reviews');
+const adminRoutes = require('./routes/admin');
 
-const app  = express();
+const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ─── Middleware ───────────────────────────────────────────
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+  'http://127.0.0.1:5175',
+  ...(process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',') : []),
+];
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 app.use(express.json());
@@ -31,10 +47,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ─── Routes ───────────────────────────────────────────────
-app.use('/api/stores',   storeRoutes);
+app.use('/api/stores', storeRoutes);
 app.use('/api/products', productRoutes);
-app.use('/api/reviews',  reviewRoutes);
-app.use('/api/admin',    adminRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
