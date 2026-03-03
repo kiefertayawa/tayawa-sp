@@ -37,11 +37,16 @@ router.post('/login', async (req, res) => {
 // GET /api/admin/stats
 router.get('/stats', auth, async (req, res) => {
   try {
-    const [pendingProducts, approvedProducts, rejectedProducts, pendingReviews] = await Promise.all([
+    const [
+      pendingProducts, approvedProducts, rejectedProducts,
+      pendingReviews, approvedReviews, rejectedReviews
+    ] = await Promise.all([
       Product.countDocuments({ status: 'pending' }),
       Product.countDocuments({ status: 'approved' }),
       Product.countDocuments({ status: 'rejected' }),
       Review.countDocuments({ status: 'pending' }),
+      Review.countDocuments({ status: 'approved' }),
+      Review.countDocuments({ status: 'rejected' }),
     ]);
     res.json({
       success: true,
@@ -50,6 +55,8 @@ router.get('/stats', auth, async (req, res) => {
         approvedProducts,
         rejectedProducts,
         pendingReviews,
+        approvedReviews,
+        rejectedReviews,
       },
     });
   } catch (err) {

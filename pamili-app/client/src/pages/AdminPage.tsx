@@ -175,8 +175,8 @@ export default function AdminPage() {
           {[
             { label: 'Pending Products', value: stats.pendingProducts, color: '#8B1538' },
             { label: 'Pending Reviews', value: stats.pendingReviews, color: '#8B1538' },
-            { label: 'Accepted Entries', value: stats.approvedProducts, color: '#16a34a' },
-            { label: 'Rejected Entries', value: stats.rejectedProducts, color: '#dc2626' },
+            { label: 'Accepted Entries', value: stats.approvedProducts + stats.approvedReviews, color: '#16a34a' },
+            { label: 'Rejected Entries', value: stats.rejectedProducts + stats.rejectedReviews, color: '#dc2626' },
           ].map(stat => (
             <div
               key={stat.label}
@@ -366,9 +366,20 @@ export default function AdminPage() {
                         </div>
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280', maxWidth: '320px' }}>
-                        <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: r.images?.length ? '8px' : '0' }}>
                           {r.text}
                         </span>
+                        {r.images && r.images.length > 0 && (
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            {r.images.map((img, i) => (
+                              <img
+                                key={i} src={img} alt="Preview"
+                                style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover', border: '1px solid #e5e7eb' }}
+                                onError={(e) => e.currentTarget.src = 'https://placehold.co/40x40?text=Err'}
+                              />
+                            ))}
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280' }}>{r.date}</td>
                       <td style={{ padding: '14px 18px' }}>

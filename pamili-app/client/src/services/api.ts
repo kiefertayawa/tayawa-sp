@@ -134,12 +134,12 @@ export const reviewService = {
     return api.get<ApiResponse<Review[]>>(`/reviews?storeId=${storeId}`);
   },
 
-  submit: (data: { storeId: string; rating: number; text: string }) => {
+  submit: (data: { storeId: string; rating: number; text: string; images?: string[] }) => {
     if (USE_MOCK) {
       const review: Review = {
         _id: `rev-${Date.now()}`,
-        userName: 'Anonymous Student',
-        date: new Date().toISOString().split('T')[0],
+        userName: 'Anonymous User',
+        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
         status: 'pending',
         ...data,
       };
@@ -208,6 +208,8 @@ export const adminService = {
         approvedProducts: 24,
         rejectedProducts: 8,
         pendingReviews: 3,
+        approvedReviews: 12,
+        rejectedReviews: 4,
       });
     }
     return api.get<ApiResponse<{
@@ -215,6 +217,8 @@ export const adminService = {
       approvedProducts: number;
       rejectedProducts: number;
       pendingReviews: number;
+      approvedReviews: number;
+      rejectedReviews: number;
     }>>('/admin/stats');
   },
 };

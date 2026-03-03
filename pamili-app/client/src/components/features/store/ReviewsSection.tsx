@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Star, MessageSquare, User, Upload } from 'lucide-react';
+import { Star, MessageSquare, User, X, Trash2 } from 'lucide-react';
 import { useReviews } from '../../../hooks';
+import { toast } from 'sonner';
 
 interface ReviewsSectionProps {
   storeId: string;
@@ -8,14 +9,22 @@ interface ReviewsSectionProps {
   helpText?: string;
 }
 
-export default function ReviewsSection({ storeId, storeName: _storeName, helpText }: ReviewsSectionProps) {
+export default function ReviewsSection({ storeId, storeName, helpText }: ReviewsSectionProps) {
   const { reviews, loading, submitReview } = useReviews(storeId);
   const [showForm, setShowForm] = useState(false);
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+
+  // Image handling
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [currentUrl, setCurrentUrl] = useState('');
+
+  // Confirmation Modal for Cancel
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  // Modal for all reviews
+  const [showAllModal, setShowAllModal] = useState(false);
 
   const avgRating = reviews.length
     ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
@@ -31,22 +40,56 @@ export default function ReviewsSection({ storeId, storeName: _storeName, helpTex
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    if (rating === 0) { setError('Please select a rating.'); return; }
-    if (!text.trim()) { setError('Please write a review.'); return; }
-    setSubmitting(true);
-    const ok = await submitReview({ rating, text });
-    setSubmitting(false);
-    if (ok) {
-      setShowForm(false);
-      setRating(0);
-      setText('');
+    if (rating === 0) {
+      toast.error('Rating is required.');
+      return;
     }
+    if (!text.trim()) {
+      toast.error('Review text is required.');
+      return;
+    }
+
+    setSubmitting(true);
+    const ok = await submitReview({ rating, text, images: imageUrls });
+    setSubmitting(false);
+
+    if (ok) {
+      toast.success('Review successfully submitted!');
+      setShowForm(false);
+      resetForm();
+    } else {
+      toast.error('Failed to submit review. Try again.');
+    }
+  };
+
+  const resetForm = () => {
+    setRating(0);
+    setText('');
+    setImageUrls([]);
+    setCurrentUrl('');
+    setShowCancelConfirm(false);
+  };
+
+  const handleCancelClick = () => {
+    if (rating > 0 || text.trim() || imageUrls.length > 0) {
+      setShowCancelConfirm(true);
+    } else {
+      setShowForm(false);
+    }
+  };
+
+  const addImageUrl = () => {
+    if (!currentUrl.trim()) return;
+    if (imageUrls.length >= 3) {
+      toast.error('Maximum 3 images allowed.');
+      return;
+    }
+    setImageUrls(prev => [...prev, currentUrl.trim()]);
+    setCurrentUrl('');
   };
 
   return (
     <div>
-
       {/* ── Reviews & Ratings ─────────────────────── */}
       <div
         style={{
@@ -57,35 +100,33 @@ export default function ReviewsSection({ storeId, storeName: _storeName, helpTex
           marginBottom: '16px',
         }}
       >
-        {/* Header row */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <h2 style={{ fontWeight: 700, fontSize: '1rem', color: '#111827', margin: 0 }}>Reviews &amp; Ratings</h2>
-          <button
-            onClick={() => setShowForm(prev => !prev)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '7px',
-              padding: '9px 18px',
-              fontSize: '0.875rem', fontWeight: 600,
-              color: '#fff', backgroundColor: '#8B1538',
-              border: 'none', borderRadius: '10px', cursor: 'pointer',
-            }}
-          >
-            <MessageSquare style={{ width: 15, height: 15 }} />
-            Write a Review
-          </button>
+          {!showForm && (
+            <button
+              onClick={() => setShowForm(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '7px',
+                padding: '9px 18px',
+                fontSize: '0.875rem', fontWeight: 600,
+                color: '#fff', backgroundColor: '#8B1538',
+                border: 'none', borderRadius: '10px', cursor: 'pointer',
+              }}
+            >
+              <MessageSquare style={{ width: 15, height: 15 }} />
+              Write a Review
+            </button>
+          )}
         </div>
 
-        {/* Optional help text below the header */}
-        {helpText && (
-          <p style={{ fontSize: '0.85rem', color: '#9ca3af', margin: '-16px 0 20px' }}>
+        {helpText && !showForm && (
+          <p style={{ fontSize: '0.85rem', color: '#9ca3af', margin: '0 0 20px' }}>
             {helpText}
           </p>
         )}
 
-        {/* Rating summary */}
         {reviews.length > 0 && (
           <div style={{ display: 'flex', gap: '40px', marginBottom: '28px', alignItems: 'center' }}>
-            {/* Big number */}
             <div style={{ textAlign: 'center', flexShrink: 0 }}>
               <p style={{ fontSize: '3.5rem', fontWeight: 800, color: '#111827', lineHeight: 1, margin: '0 0 8px' }}>
                 {avgRating.toFixed(1)}
@@ -105,7 +146,6 @@ export default function ReviewsSection({ storeId, storeName: _storeName, helpTex
               <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: 0 }}>{reviews.length} reviews</p>
             </div>
 
-            {/* Bar chart */}
             <div style={{ flex: 1 }}>
               {ratingDist.map(({ stars, count, pct }) => (
                 <div key={stars} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
@@ -132,7 +172,6 @@ export default function ReviewsSection({ storeId, storeName: _storeName, helpTex
           </div>
         )}
 
-        {/* Review cards */}
         {loading ? (
           <div>
             {[0, 1].map(i => (
@@ -142,188 +181,240 @@ export default function ReviewsSection({ storeId, storeName: _storeName, helpTex
         ) : reviews.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: '#9ca3af' }}>
             <MessageSquare style={{ width: 40, height: 40, color: '#e5e7eb', margin: '0 auto 8px' }} />
-            <p style={{ fontSize: '0.875rem' }}>No reviews yet. Be the first!</p>
+            <p style={{ fontSize: '0.875rem' }}>No approved reviews yet. Share your experience!</p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {reviews.map(review => (
-              <div
-                key={review._id}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {reviews.slice(0, 3).map(review => (
+              <ReviewCard key={review._id} review={review} />
+            ))}
+
+            {reviews.length > 3 && (
+              <button
+                onClick={() => setShowAllModal(true)}
                 style={{
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '12px',
-                  padding: '16px',
+                  background: 'none', border: 'none', color: '#8B1538',
+                  fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer',
+                  padding: '8px 0', textAlign: 'left', width: 'fit-content',
+                  textDecoration: 'underline', textUnderlineOffset: '4px'
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                  {/* Left: avatar + name + date */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div
-                      style={{
-                        width: 38, height: 38,
-                        borderRadius: '50%',
-                        backgroundColor: '#f3f4f6',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <User style={{ width: 18, height: 18, color: '#9ca3af' }} />
-                    </div>
-                    <div>
-                      <p style={{ fontWeight: 600, fontSize: '0.875rem', color: '#374151', margin: '0 0 2px' }}>
-                        {review.userName}
-                      </p>
-                      <p style={{ fontSize: '0.78rem', color: '#9ca3af', margin: 0 }}>
-                        {new Date(review.date).toLocaleDateString('en-US', {
-                          month: 'long', day: 'numeric', year: 'numeric',
-                        })}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Right: star rating */}
-                  <div style={{ display: 'flex', gap: '2px' }}>
-                    {[1, 2, 3, 4, 5].map(s => (
-                      <Star
-                        key={s}
-                        style={{
-                          width: 15, height: 15,
-                          fill: s <= review.rating ? '#facc15' : '#e5e7eb',
-                          color: s <= review.rating ? '#facc15' : '#e5e7eb',
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <p style={{ fontSize: '0.875rem', color: '#4b5563', margin: 0, lineHeight: 1.6 }}>
-                  {review.text}
-                </p>
-              </div>
-            ))}
+                See More Reviews ({reviews.length - 3} more)
+              </button>
+            )}
           </div>
         )}
       </div>
 
-      {/* ── Write a Review form (separate card below) ── */}
+      {/* ── Write a Review Form (Modal-like card) ── */}
       {showForm && (
         <div
           style={{
             backgroundColor: '#fff',
             borderRadius: '16px',
-            border: '1px solid #e5e7eb',
+            border: '2px solid #8B1538',
             padding: '24px',
+            marginBottom: '40px',
+            boxShadow: '0 4px 20px rgba(139,21,56,0.08)'
           }}
         >
-          <h2 style={{ fontWeight: 700, fontSize: '1rem', color: '#111827', margin: '0 0 20px' }}>
-            Share Your Experience
-          </h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h2 style={{ fontWeight: 700, fontSize: '1.1rem', color: '#111827', margin: 0 }}>Write a Review for {storeName}</h2>
+            <button onClick={handleCancelClick} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: '4px', display: 'flex' }}>
+              <X style={{ width: 28, height: 28 }} />
+            </button>
+          </div>
 
           <form onSubmit={handleSubmit}>
-            {/* Star selector */}
-            <div style={{ marginBottom: '18px' }}>
-              <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '8px' }}>
-                Your Rating
-              </label>
-              <div style={{ display: 'flex', gap: '6px' }}>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '10px' }}>Rating</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
                 {[1, 2, 3, 4, 5].map(s => (
                   <button
-                    key={s}
-                    type="button"
+                    key={s} type="button"
                     onMouseEnter={() => setHoverRating(s)}
                     onMouseLeave={() => setHoverRating(0)}
                     onClick={() => setRating(s)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                   >
-                    <Star
-                      style={{
-                        width: 28, height: 28,
-                        fill: s <= (hoverRating || rating) ? '#facc15' : 'transparent',
-                        color: s <= (hoverRating || rating) ? '#facc15' : '#d1d5db',
-                        transition: 'fill 0.1s, color 0.1s',
-                      }}
-                    />
+                    <Star style={{ width: 32, height: 32, fill: s <= (hoverRating || rating) ? '#facc15' : 'transparent', color: s <= (hoverRating || rating) ? '#facc15' : '#d1d5db', transition: 'all 0.1s' }} />
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Review text */}
-            <div style={{ marginBottom: '18px' }}>
-              <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '8px' }}>
-                Your Review
-              </label>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '8px' }}>Your Message</label>
               <textarea
-                value={text}
-                onChange={e => setText(e.target.value)}
-                placeholder="Tell us about your experience at this store..."
+                value={text} onChange={e => setText(e.target.value)}
+                placeholder="How was the store? Was it crowded? Are the prices accurate?"
                 rows={4}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  fontSize: '0.875rem',
-                  border: '1.5px solid #e5e7eb',
-                  borderRadius: '10px',
-                  backgroundColor: '#f9fafb',
-                  outline: 'none',
-                  resize: 'none',
-                  color: '#374151',
-                  boxSizing: 'border-box',
-                }}
+                style={{ width: '100%', padding: '12px', fontSize: '0.875rem', border: '1.5px solid #e5e7eb', borderRadius: '10px', backgroundColor: '#f9fafb', outline: 'none', resize: 'none', color: '#374151', boxSizing: 'border-box' }}
               />
             </div>
 
-            {/* Upload (visual only) */}
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '8px' }}>
-                Upload Images (optional)
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '10px' }}>
+                Add Photos (URL) <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: '0.8rem' }}>(optional)</span>
               </label>
-              <button
-                type="button"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  padding: '8px 16px',
-                  fontSize: '0.825rem', color: '#374151',
-                  border: '1px solid #d1d5db', borderRadius: '8px',
-                  backgroundColor: '#fff', cursor: 'pointer',
-                }}
-              >
-                <Upload style={{ width: 14, height: 14 }} /> Upload
-              </button>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', alignItems: 'stretch' }}>
+                <input
+                  type="text" value={currentUrl} onChange={e => setCurrentUrl(e.target.value)}
+                  placeholder="https://example.com/image.jpg"
+                  style={{ flex: 1, padding: '10px 14px', fontSize: '0.875rem', border: '1.5px solid #e5e7eb', borderRadius: '8px', outline: 'none' }}
+                />
+                <button
+                  type="button" onClick={addImageUrl}
+                  style={{ padding: '0 20px', backgroundColor: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                >
+                  Add
+                </button>
+              </div>
+              {imageUrls.length > 0 && (
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  {imageUrls.map((url, i) => (
+                    <div key={i} style={{ position: 'relative' }}>
+                      <img src={url} alt="Draft" style={{ width: '110px', height: '110px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #e5e7eb' }} onError={(e) => e.currentTarget.src = 'https://placehold.co/110x110?text=Error'} />
+                      <button
+                        type="button" onClick={() => setImageUrls(prev => prev.filter((_, idx) => idx !== i))}
+                        style={{ position: 'absolute', top: '-8px', right: '-8px', backgroundColor: '#dc2626', color: '#fff', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', transition: 'transform 0.1s' }}
+                      >
+                        <X style={{ width: 14, height: 14 }} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {error && (
-              <p style={{ fontSize: '0.8rem', color: '#dc2626', marginBottom: '12px' }}>{error}</p>
-            )}
-
-            {/* Action buttons */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button
-                type="submit"
-                disabled={submitting}
+                type="submit" disabled={submitting}
                 style={{
-                  padding: '10px 24px',
-                  fontSize: '0.875rem', fontWeight: 600,
-                  color: '#fff', backgroundColor: submitting ? '#c084a0' : '#8B1538',
-                  border: 'none', borderRadius: '8px', cursor: submitting ? 'not-allowed' : 'pointer',
+                  width: '140px', height: '46px', boxSizing: 'border-box',
+                  fontSize: '0.9rem', fontWeight: 700, color: '#fff',
+                  backgroundColor: submitting ? '#c084a0' : '#8B1538',
+                  border: 'none', borderRadius: '10px', cursor: submitting ? 'not-allowed' : 'pointer'
                 }}
               >
-                {submitting ? 'Submitting...' : 'Submit'}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setShowForm(false); setRating(0); setText(''); setError(''); }}
-                style={{
-                  padding: '10px 20px',
-                  fontSize: '0.875rem', fontWeight: 500,
-                  color: '#374151', backgroundColor: '#f3f4f6',
-                  border: '1.5px solid #d1d5db', borderRadius: '8px', cursor: 'pointer',
-                }}
-              >
-                Cancel
+                {submitting ? 'Submitting...' : 'Submit Review'}
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* ── Cancellation Confirmation Modal ── */}
+      {showCancelConfirm && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 1000 }} />
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', backgroundColor: '#fff', borderRadius: '16px', padding: '28px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)', zIndex: 1001, width: '100%', maxWidth: '360px', textAlign: 'center' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#fdf2f5', color: '#8B1538', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Trash2 style={{ width: 28, height: 28 }} />
+            </div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>Discard Review?</h3>
+            <p style={{ fontSize: '0.9rem', color: '#6b7280', margin: '0 0 24px', lineHeight: 1.5 }}>You have unsaved changes. Are you sure you want to cancel your review?</p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setShowCancelConfirm(false)} style={{ flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600, color: '#374151', backgroundColor: '#f3f4f6', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>No, Continue</button>
+              <button onClick={() => { setShowForm(false); resetForm(); }} style={{ flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600, color: '#fff', backgroundColor: '#8B1538', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>Yes, Discard</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── All Reviews Modal ── */}
+      {showAllModal && (
+        <>
+          <div
+            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 1000 }}
+            onClick={() => setShowAllModal(false)}
+          />
+          <div
+            style={{
+              position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+              backgroundColor: '#fff', borderRadius: '20px', padding: '0',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', zIndex: 1001,
+              width: '90%', maxWidth: '600px', height: '80vh',
+              display: 'flex', flexDirection: 'column', overflow: 'hidden'
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{ padding: '24px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>All Reviews</h3>
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>Showing {reviews.length} community ratings for {storeName}</p>
+              </div>
+              <button
+                onClick={() => setShowAllModal(false)}
+                style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}
+              >
+                <X style={{ width: 20, height: 20 }} />
+              </button>
+            </div>
+
+            {/* Scrollable Reviews List */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '24px', backgroundColor: '#f9fafb' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {reviews.map(review => (
+                  <ReviewCard key={review._id} review={review} />
+                ))}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ padding: '16px 24px', borderTop: '1px solid #f3f4f6', textAlign: 'center', flexShrink: 0 }}>
+              <button
+                onClick={() => setShowAllModal(false)}
+                style={{ padding: '10px 24px', backgroundColor: '#8B1538', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Shared Component for Review Card ───────────────────────
+function ReviewCard({ review }: { review: any }) {
+  return (
+    <div
+      style={{
+        border: '1px solid #e5e7eb',
+        borderRadius: '12px',
+        padding: '16px',
+        backgroundColor: '#fff'
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: 38, height: 38, borderRadius: '50%', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <User style={{ width: 18, height: 18, color: '#9ca3af' }} />
+          </div>
+          <div>
+            <p style={{ fontWeight: 600, fontSize: '0.875rem', color: '#374151', margin: '0 0 2px' }}>{review.userName}</p>
+            <p style={{ fontSize: '0.78rem', color: '#9ca3af', margin: 0 }}>{review.date}</p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '2px' }}>
+          {[1, 2, 3, 4, 5].map(s => (
+            <Star key={s} style={{ width: 15, height: 15, fill: s <= review.rating ? '#facc15' : '#e5e7eb', color: s <= review.rating ? '#facc15' : '#e5e7eb' }} />
+          ))}
+        </div>
+      </div>
+      <p style={{ fontSize: '0.875rem', color: '#4b5563', margin: '0 0 12px', lineHeight: 1.6 }}>{review.text}</p>
+
+      {review.images && review.images.length > 0 && (
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {review.images.map((img: string, i: number) => (
+            <img
+              key={i} src={img} alt="Review"
+              style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e5e7eb' }}
+              onError={(e) => e.currentTarget.src = 'https://placehold.co/100x100?text=Invalid+Img'}
+            />
+          ))}
         </div>
       )}
     </div>

@@ -1,7 +1,7 @@
 const express = require('express');
-const router  = express.Router();
-const Review  = require('../models/Review');
-const Store   = require('../models/Store');
+const router = express.Router();
+const Review = require('../models/Review');
+const Store = require('../models/Store');
 
 // GET /api/reviews?storeId=xxx — get approved reviews for a store
 router.get('/', async (req, res) => {
@@ -28,7 +28,15 @@ router.post('/', async (req, res) => {
     const store = await Store.findById(storeId);
     if (!store) return res.status(404).json({ success: false, error: 'Store not found' });
 
-    const review = await Review.create({ storeId, rating: parseInt(rating), text, status: 'pending' });
+    const review = await Review.create({
+      storeId,
+      rating: parseInt(rating),
+      text,
+      status: 'pending',
+      userName: 'Anonymous User',
+      images: Array.isArray(req.body.images) ? req.body.images : [],
+      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    });
     res.status(201).json({ success: true, data: review, message: 'Review submitted for moderation' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

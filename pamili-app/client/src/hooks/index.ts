@@ -93,11 +93,13 @@ export function useReviews(storeId: string | undefined) {
 
   useEffect(() => { load(); }, [load]);
 
-  const submitReview = async (data: { rating: number; text: string }) => {
+  const submitReview = async (data: { rating: number; text: string; images?: string[] }) => {
     if (!storeId) return false;
     try {
       await reviewService.submit({ storeId, ...data });
-      load(); // refresh reviews
+      // We don't refresh immediately because the review will be 'pending'
+      // and won't show up in the public list yet.
+      // load(); 
       return true;
     } catch {
       return false;
@@ -116,6 +118,8 @@ export function usePendingItems() {
     approvedProducts: 0,
     rejectedProducts: 0,
     pendingReviews: 0,
+    approvedReviews: 0,
+    rejectedReviews: 0,
   });
   const [loading, setLoading] = useState(true);
 
