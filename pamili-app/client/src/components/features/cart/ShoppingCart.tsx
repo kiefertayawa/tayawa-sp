@@ -101,9 +101,11 @@ export default function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
           </div>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', borderRadius: '6px' }}
+            style={{ background: '#f3f4f6', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.2s' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e5e7eb'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
           >
-            <X style={{ width: 20, height: 20, color: '#6b7280' }} />
+            <X style={{ width: 18, height: 18, color: '#6b7280' }} />
           </button>
         </div>
 
@@ -140,9 +142,10 @@ export default function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
                         }}
                       >
                         <img
-                          src={item.image}
+                          src={item.image?.trim() || 'https://placehold.co/400x400?text=No+Image+Available'}
                           alt={item.productName}
                           style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: '8px', flexShrink: 0 }}
+                          onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available')}
                         />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#111827', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

@@ -359,7 +359,7 @@ export default function AdminPage() {
                           </div>
                         )}
                       </td>
-                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 500, color: '#111827' }}>
+                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 500, color: '#111827', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {p.name}
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#111827', fontWeight: 500 }}>
@@ -624,8 +624,8 @@ export default function AdminPage() {
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>
                 Confirm {confirmModal.action === 'delete' ? 'Deletion' : 'Rejection'}
               </h3>
-              <p style={{ fontSize: '0.9rem', color: '#6b7280', margin: '0 0 24px', lineHeight: 1.5 }}>
-                Are you sure you want to {confirmModal.action === 'delete' ? 'delete' : 'reject'} the {confirmModal.type} <strong>{confirmModal.name}</strong>?
+              <p style={{ fontSize: '0.9rem', color: '#6b7280', margin: '0 0 24px', lineHeight: 1.5, wordBreak: 'break-word' }}>
+                Are you sure you want to {confirmModal.action === 'delete' ? 'delete' : 'reject'} the {confirmModal.type} <strong style={{ wordBreak: 'break-all' }}>{confirmModal.name}</strong>?
               </p>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
@@ -796,7 +796,7 @@ export default function AdminPage() {
               {/* Scrollable Content */}
               <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
                 <div style={{ backgroundColor: '#f9fafb', padding: '24px', borderRadius: '16px', border: '1px solid #f3f4f6', marginBottom: '24px' }}>
-                  <h4 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#111827', margin: '0 0 16px' }}>{viewProductModal.product.name}</h4>
+                  <h4 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#111827', margin: '0 0 16px', wordBreak: 'break-word' }}>{viewProductModal.product.name}</h4>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                     <div>
