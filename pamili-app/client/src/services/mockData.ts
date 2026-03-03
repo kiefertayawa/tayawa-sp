@@ -4,7 +4,7 @@
 // Matches the TypeScript types in src/types/index.ts exactly.
 // ============================================================
 
-import type { Store, Product, Review, PendingProduct } from '../types';
+import type { Store, Product, Review } from '../types';
 
 // ─── Stores ───────────────────────────────────────────────────────────────────
 
@@ -95,10 +95,7 @@ export const MOCK_PRODUCTS: Product[] = [
     {
         _id: 'prod-1',
         name: 'Rice (NFA) - 1kg',
-        category: 'Grains',
         image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400&auto=format&fit=crop',
-        rating: 4.5,
-        reviewCount: 87,
         prices: [
             { storeId: 'store-1', storeName: 'Puregold Los Baños', price: 42.00, lastUpdated: '2025-11-15', inStock: true },
             { storeId: 'store-2', storeName: 'LB Square Public Market', price: 40.00, lastUpdated: '2025-11-15', inStock: true },
@@ -113,10 +110,7 @@ export const MOCK_PRODUCTS: Product[] = [
     {
         _id: 'prod-2',
         name: 'Eggs (Medium) - 1 dozen',
-        category: 'Dairy & Eggs',
         image: 'https://images.unsplash.com/photo-1587486913049-53fc88980cfc?w=400&auto=format&fit=crop',
-        rating: 4.7,
-        reviewCount: 142,
         prices: [
             { storeId: 'store-1', storeName: 'Puregold Los Baños', price: 96.00, lastUpdated: '2025-11-15', inStock: true },
             { storeId: 'store-2', storeName: 'LB Square Public Market', price: 90.00, lastUpdated: '2025-11-15', inStock: true },
@@ -134,10 +128,7 @@ export const MOCK_PRODUCTS: Product[] = [
     {
         _id: 'prod-3',
         name: 'Lucky Me Pancit Canton',
-        category: 'Noodles',
         image: 'https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?w=400&auto=format&fit=crop',
-        rating: 4.8,
-        reviewCount: 215,
         prices: [
             { storeId: 'store-1', storeName: 'Puregold Los Baños', price: 14.50, lastUpdated: '2025-11-15', inStock: true },
             { storeId: 'store-3', storeName: 'Mini Stop Los Baños', price: 15.00, lastUpdated: '2025-11-15', inStock: true },
@@ -153,10 +144,7 @@ export const MOCK_PRODUCTS: Product[] = [
     {
         _id: 'prod-4',
         name: 'Emperador Light',
-        category: 'Beverages',
         image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?w=400&auto=format&fit=crop',
-        rating: 4.2,
-        reviewCount: 63,
         prices: [
             { storeId: 'store-3', storeName: 'Mini Stop Los Baños', price: 42.00, lastUpdated: '2025-11-14', inStock: true },
             { storeId: 'store-6', storeName: '7-Eleven Batong Malake', price: 44.00, lastUpdated: '2025-11-15', inStock: true },
@@ -170,10 +158,7 @@ export const MOCK_PRODUCTS: Product[] = [
     {
         _id: 'prod-5',
         name: 'San Miguel Pale Pilsen',
-        category: 'Beverages',
         image: 'https://images.unsplash.com/photo-1608270586620-248524c67de9?w=400&auto=format&fit=crop',
-        rating: 4.6,
-        reviewCount: 98,
         prices: [
             { storeId: 'store-3', storeName: 'Mini Stop Los Baños', price: 48.00, lastUpdated: '2025-11-15', inStock: true },
             { storeId: 'store-4', storeName: 'Savemore Market Los Baños', price: 46.00, lastUpdated: '2025-11-15', inStock: true },
@@ -188,10 +173,7 @@ export const MOCK_PRODUCTS: Product[] = [
     {
         _id: 'prod-6',
         name: 'Mongol Pencil',
-        category: 'School Supplies',
         image: 'https://images.unsplash.com/photo-1589556264800-08ae9e129a4e?w=400&auto=format&fit=crop',
-        rating: 4.3,
-        reviewCount: 41,
         prices: [
             { storeId: 'store-5', storeName: 'University Store', price: 8.00, lastUpdated: '2025-11-15', inStock: true },
             { storeId: 'store-1', storeName: 'Puregold Los Baños', price: 9.50, lastUpdated: '2025-11-13', inStock: true },
@@ -205,10 +187,7 @@ export const MOCK_PRODUCTS: Product[] = [
     {
         _id: 'prod-7',
         name: 'Instant Noodles (Lucky Me) - 1 pack',
-        category: 'Noodles',
         image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400&auto=format&fit=crop',
-        rating: 4.6,
-        reviewCount: 178,
         prices: [
             { storeId: 'store-4', storeName: 'Savemore Market Los Baños', price: 12.00, lastUpdated: '2025-11-15', inStock: true },
             { storeId: 'store-1', storeName: 'Puregold Los Baños', price: 13.00, lastUpdated: '2025-11-15', inStock: true },
@@ -222,10 +201,7 @@ export const MOCK_PRODUCTS: Product[] = [
     {
         _id: 'prod-8',
         name: 'Coke 1.5L',
-        category: 'Beverages',
         image: 'https://images.unsplash.com/photo-1554866585-cd94860890b7?w=400&auto=format&fit=crop',
-        rating: 4.4,
-        reviewCount: 122,
         prices: [
             { storeId: 'store-1', storeName: 'Puregold Los Baños', price: 65.00, lastUpdated: '2025-11-15', inStock: true },
             { storeId: 'store-4', storeName: 'Savemore Market Los Baños', price: 63.00, lastUpdated: '2025-11-15', inStock: true },
@@ -308,87 +284,4 @@ export const MOCK_REVIEWS: Review[] = [
 ];
 
 // ─── Pending Admin Items ───────────────────────────────────────────────────────
-
-export const MOCK_PENDING_PRODUCTS: PendingProduct[] = [
-    {
-        _id: 'pend-prod-1',
-        name: 'Lucky Me Pancit Canton',
-        category: 'Noodles',
-        storeName: 'Puregold Los Baños',
-        storeId: 'store-1',
-        price: 14.50,
-        submittedBy: 'Anonymous Student',
-        submittedDate: '2025-11-15',
-        image: 'https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?w=200&auto=format&fit=crop',
-        status: 'pending',
-    },
-    {
-        _id: 'pend-prod-2',
-        name: 'Mongol Pencil',
-        category: 'School Supplies',
-        storeName: 'University Store',
-        storeId: 'store-5',
-        price: 8.00,
-        submittedBy: 'Anonymous Student',
-        submittedDate: '2025-11-15',
-        image: 'https://images.unsplash.com/photo-1589556264800-08ae9e129a4e?w=200&auto=format&fit=crop',
-        status: 'pending',
-    },
-    {
-        _id: 'pend-prod-3',
-        name: 'Emperador Light',
-        category: 'Beverages',
-        storeName: 'Mini Stop Los Baños',
-        storeId: 'store-3',
-        price: 42.00,
-        submittedBy: 'Anonymous Student',
-        submittedDate: '2025-11-14',
-        image: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?w=200&auto=format&fit=crop',
-        status: 'pending',
-    },
-    {
-        _id: 'pend-prod-4',
-        name: 'NFA Rice',
-        category: 'Grains',
-        storeName: 'Puregold Los Baños',
-        storeId: 'store-1',
-        price: 41.00,
-        submittedBy: 'Anonymous Student',
-        submittedDate: '2025-11-15',
-        image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=200&auto=format&fit=crop',
-        status: 'pending',
-    },
-    {
-        _id: 'pend-prod-5',
-        name: 'San Miguel Pale Pilsen',
-        category: 'Beverages',
-        storeName: 'Mini Stop Los Baños',
-        storeId: 'store-3',
-        price: 48.00,
-        submittedBy: 'Anonymous Student',
-        submittedDate: '2025-11-15',
-        image: 'https://images.unsplash.com/photo-1608270586620-248524c67de9?w=200&auto=format&fit=crop',
-        status: 'pending',
-    },
-];
-
-export const MOCK_PENDING_REVIEWS: Review[] = [
-    {
-        _id: 'pend-rev-1',
-        storeId: 'store-1',
-        userName: 'Anonymous Student',
-        rating: 5,
-        date: '2025-11-15',
-        text: 'Very affordable and complete! Perfect for students on a budget.',
-        status: 'pending',
-    },
-    {
-        _id: 'pend-rev-2',
-        storeId: 'store-2',
-        userName: 'Anonymous Student',
-        rating: 3,
-        date: '2025-11-15',
-        text: 'Market is good but very crowded in the morning. Bring exact change.',
-        status: 'pending',
-    },
-];
+// (Obsolete: Pending items are now unified with main collections)

@@ -6,12 +6,14 @@
 export interface Product {
   _id: string;
   name: string;
-  category: string;
   image: string;
   prices: PriceEntry[];
   priceHistory?: PriceHistoryEntry[];
-  rating: number;
-  reviewCount: number;
+  createdAt?: string;
+  updatedAt?: string;
+  status?: 'pending' | 'approved' | 'rejected';
+  submittedBy?: string;
+  submittedDate?: string;
 }
 
 export interface PriceEntry {
@@ -61,19 +63,6 @@ export interface Review {
   images?: string[];
   storeResponse?: string;
   status?: 'pending' | 'approved' | 'rejected';
-}
-
-export interface PendingProduct {
-  _id: string;
-  name: string;
-  category: string;
-  storeName: string;
-  storeId: string;
-  price: number;
-  submittedBy: string;
-  submittedDate: string;
-  image?: string;
-  status: 'pending' | 'approved' | 'rejected';
 }
 
 export interface ApiResponse<T> {

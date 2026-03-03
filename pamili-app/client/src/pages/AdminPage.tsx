@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { CheckCircle, Star, Package, LogIn, Eye, EyeOff } from 'lucide-react';
+import { Star, Package, LogIn, Eye, EyeOff, CheckCircle, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { usePendingItems } from '../hooks';
 import { useAuth } from '../context/AuthContext';
 
@@ -10,15 +11,60 @@ export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
+
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState<{
+    show: boolean;
+    type: 'product' | 'review';
+    action: 'approve' | 'reject';
+    id: string;
+    name: string;
+  }>({ show: false, type: 'product', action: 'reject', id: '', name: '' });
+
   const {
-    pendingProducts, pendingReviews, loading,
+    pendingProducts, pendingReviews, stats, loading,
     approveProduct, rejectProduct, approveReview, rejectReview,
   } = usePendingItems();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const ok = await login(username, password);
-    if (!ok) setLoginError('Invalid credentials. Try admin / pamili_admin_2024');
+    if (!ok) setLoginError('Invalid credentials. Try admin / adminpabili');
+  };
+
+  const handleApproveProduct = async (id: string) => {
+    const ok = await approveProduct(id);
+    if (ok) toast.success('Product approved!');
+    else toast.error('Failed to approve product.');
+  };
+
+  const handleRejectProduct = (id: string, name: string) => {
+    setConfirmModal({ show: true, type: 'product', action: 'reject', id, name });
+  };
+
+  const handleApproveReview = async (id: string) => {
+    const ok = await approveReview(id);
+    if (ok) toast.success('Review approved!');
+    else toast.error('Failed to approve review.');
+  };
+
+  const handleRejectReview = (id: string, name: string) => {
+    setConfirmModal({ show: true, type: 'review', action: 'reject', id, name });
+  };
+
+  const executeConfirmedAction = async () => {
+    const { type, action, id } = confirmModal;
+    setConfirmModal(prev => ({ ...prev, show: false }));
+
+    if (type === 'product' && action === 'reject') {
+      const ok = await rejectProduct(id);
+      if (ok) toast.success('Submission rejected.');
+      else toast.error('Failed to reject submission.');
+    } else if (type === 'review' && action === 'reject') {
+      const ok = await rejectReview(id);
+      if (ok) toast.success('Review rejected.');
+      else toast.error('Failed to reject review.');
+    }
   };
 
   // ── Login screen ──────────────────────────────────────────
@@ -120,9 +166,6 @@ export default function AdminPage() {
   }
 
   // ── Admin dashboard ───────────────────────────────────────
-  const acceptedCount = 24;
-  const rejectedCount = 8;
-
   return (
     <div style={{ backgroundColor: '#f5f6fa', minHeight: '100vh' }}>
       <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '32px 28px' }}>
@@ -130,10 +173,10 @@ export default function AdminPage() {
         {/* ── Stat cards ─────────────────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
           {[
-            { label: 'Pending Products', value: pendingProducts.length, color: '#8B1538' },
-            { label: 'Pending Reviews', value: pendingReviews.length, color: '#8B1538' },
-            { label: 'Accepted Entries', value: acceptedCount, color: '#16a34a' },
-            { label: 'Rejected Entries', value: rejectedCount, color: '#dc2626' },
+            { label: 'Pending Products', value: stats.pendingProducts, color: '#8B1538' },
+            { label: 'Pending Reviews', value: stats.pendingReviews, color: '#8B1538' },
+            { label: 'Accepted Entries', value: stats.approvedProducts, color: '#16a34a' },
+            { label: 'Rejected Entries', value: stats.rejectedProducts, color: '#dc2626' },
           ].map(stat => (
             <div
               key={stat.label}
@@ -225,7 +268,12 @@ export default function AdminPage() {
                     >
                       <td style={{ padding: '14px 18px' }}>
                         {p.image ? (
-                          <img src={p.image} alt={p.name} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: '8px' }} />
+                          <img
+                            src={p.image}
+                            alt={p.name}
+                            style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: '8px' }}
+                            onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=Invalid+Image+Link')}
+                          />
                         ) : (
                           <div style={{ width: 48, height: 48, backgroundColor: '#f3f4f6', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Package style={{ width: 20, height: 20, color: '#d1d5db' }} />
@@ -236,10 +284,10 @@ export default function AdminPage() {
                         {p.name}
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#0d9488', fontWeight: 500 }}>
-                        {p.storeName}
+                        {p.prices?.[0]?.storeName || 'Unknown'}
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 600, color: '#8B1538' }}>
-                        ₱{p.price.toFixed(2)}
+                        ₱{(p.prices?.[0]?.price || 0).toFixed(2)}
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280' }}>
                         {p.submittedBy}
@@ -250,7 +298,7 @@ export default function AdminPage() {
                       <td style={{ padding: '14px 18px' }}>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
-                            onClick={() => approveProduct(p._id)}
+                            onClick={() => handleApproveProduct(p._id)}
                             style={{
                               padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
                               color: '#fff', backgroundColor: '#16a34a',
@@ -260,7 +308,7 @@ export default function AdminPage() {
                             Approve
                           </button>
                           <button
-                            onClick={() => rejectProduct(p._id)}
+                            onClick={() => handleRejectProduct(p._id, p.name)}
                             style={{
                               padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
                               color: '#dc2626', backgroundColor: '#fff',
@@ -326,7 +374,7 @@ export default function AdminPage() {
                       <td style={{ padding: '14px 18px' }}>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
-                            onClick={() => approveReview(r._id)}
+                            onClick={() => handleApproveReview(r._id)}
                             style={{
                               padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
                               color: '#fff', backgroundColor: '#16a34a',
@@ -336,7 +384,7 @@ export default function AdminPage() {
                             Approve
                           </button>
                           <button
-                            onClick={() => rejectReview(r._id)}
+                            onClick={() => handleRejectReview(r._id, r.userName)}
                             style={{
                               padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
                               color: '#dc2626', backgroundColor: '#fff',
@@ -355,6 +403,66 @@ export default function AdminPage() {
           )}
         </div>
       </div>
+
+      {/* ── Confirmation Modal ────────────────────────── */}
+      {confirmModal.show && (
+        <>
+          <div
+            onClick={() => setConfirmModal(p => ({ ...p, show: false }))}
+            style={{
+              position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
+              backdropFilter: 'blur(4px)', zIndex: 1000,
+            }}
+          />
+          <div
+            style={{
+              position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+              backgroundColor: '#fff', borderRadius: '16px', padding: '28px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.15)', zIndex: 1001,
+              width: '100%', maxWidth: '380px', textAlign: 'center',
+            }}
+          >
+            <div
+              style={{
+                width: '56px', height: '56px', borderRadius: '50%',
+                backgroundColor: '#fee2e2', color: '#dc2626',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 16px',
+              }}
+            >
+              <X style={{ width: 28, height: 28 }} />
+            </div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>
+              Confirm Rejection
+            </h3>
+            <p style={{ fontSize: '0.9rem', color: '#6b7280', margin: '0 0 24px', lineHeight: 1.5 }}>
+              Are you sure you want to reject the {confirmModal.type} <strong>{confirmModal.name}</strong>?
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setConfirmModal(p => ({ ...p, show: false }))}
+                style={{
+                  flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600,
+                  color: '#374151', backgroundColor: '#f3f4f6', border: 'none',
+                  borderRadius: '10px', cursor: 'pointer',
+                }}
+              >
+                Go Back
+              </button>
+              <button
+                onClick={executeConfirmedAction}
+                style={{
+                  flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600,
+                  color: '#fff', backgroundColor: '#dc2626', border: 'none',
+                  borderRadius: '10px', cursor: 'pointer',
+                }}
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

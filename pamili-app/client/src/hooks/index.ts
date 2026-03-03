@@ -5,7 +5,7 @@
 // ============================================================
 
 import { useState, useEffect, useCallback } from 'react';
-import type { Product, Store, Review, PendingProduct } from '../types';
+import type { Product, Store, Review } from '../types';
 import { productService, storeService, reviewService, adminService } from '../services/api';
 
 // ─── Stores ───────────────────────────────────────────────
@@ -109,49 +109,83 @@ export function useReviews(storeId: string | undefined) {
 
 // ─── Admin ────────────────────────────────────────────────
 export function usePendingItems() {
-  const [pendingProducts, setPendingProducts] = useState<PendingProduct[]>([]);
+  const [pendingProducts, setPendingProducts] = useState<Product[]>([]);
   const [pendingReviews, setPendingReviews] = useState<Review[]>([]);
+  const [stats, setStats] = useState({
+    pendingProducts: 0,
+    approvedProducts: 0,
+    rejectedProducts: 0,
+    pendingReviews: 0,
+  });
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [prodRes, revRes] = await Promise.all([
+      const [prodRes, revRes, statsRes] = await Promise.all([
         adminService.getPendingProducts(),
         adminService.getPendingReviews(),
+        adminService.getStats(),
       ]);
       setPendingProducts(prodRes.data.data);
       setPendingReviews(revRes.data.data);
+      setStats(statsRes.data.data);
+    } catch (err) {
+      console.error('Failed to load admin data:', err);
     } finally {
       setLoading(false);
     }
   }, []);
 
+  const refreshStats = async () => {
+    try {
+      const res = await adminService.getStats();
+      setStats(res.data.data);
+    } catch { }
+  };
+
   useEffect(() => { load(); }, [load]);
 
   const approveProduct = async (id: string) => {
-    await adminService.approveProduct(id);
-    setPendingProducts((p) => p.filter((x) => x._id !== id));
+    try {
+      await adminService.approveProduct(id);
+      setPendingProducts((p) => p.filter((x) => x._id !== id));
+      refreshStats();
+      return true;
+    } catch { return false; }
   };
 
   const rejectProduct = async (id: string) => {
-    await adminService.rejectProduct(id);
-    setPendingProducts((p) => p.filter((x) => x._id !== id));
+    try {
+      await adminService.rejectProduct(id);
+      setPendingProducts((p) => p.filter((x) => x._id !== id));
+      refreshStats();
+      return true;
+    } catch { return false; }
   };
 
   const approveReview = async (id: string) => {
-    await adminService.approveReview(id);
-    setPendingReviews((r) => r.filter((x) => x._id !== id));
+    try {
+      await adminService.approveReview(id);
+      setPendingReviews((r) => r.filter((x) => x._id !== id));
+      refreshStats();
+      return true;
+    } catch { return false; }
   };
 
   const rejectReview = async (id: string) => {
-    await adminService.rejectReview(id);
-    setPendingReviews((r) => r.filter((x) => x._id !== id));
+    try {
+      await adminService.rejectReview(id);
+      setPendingReviews((r) => r.filter((x) => x._id !== id));
+      refreshStats();
+      return true;
+    } catch { return false; }
   };
 
   return {
     pendingProducts,
     pendingReviews,
+    stats,
     loading,
     approveProduct,
     rejectProduct,

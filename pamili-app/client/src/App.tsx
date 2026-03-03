@@ -49,9 +49,12 @@ function AppLayout() {
   );
 }
 
+import { Toaster } from 'sonner';
+
 export default function App() {
   return (
     <BrowserRouter>
+      <Toaster position="bottom-right" richColors />
       <AuthProvider>
         <CartProvider>
           <AppLayout />

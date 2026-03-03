@@ -228,7 +228,7 @@ export default function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
               marginBottom: '10px',
             }}
           >
-            Clear Cart
+            Clear List
           </button>
           <p style={{ fontSize: '0.75rem', textAlign: 'center', color: '#9ca3af' }}>
             This is a budget planning tool. Visit stores to make actual purchases.

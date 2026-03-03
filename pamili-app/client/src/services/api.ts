@@ -5,13 +5,11 @@
 // ensure VITE_API_URL is set to your Express server URL.
 // ============================================================
 
-import type { Product, Store, Review, PendingProduct, ApiResponse } from '../types';
+import type { Product, Store, Review, ApiResponse } from '../types';
 import {
   MOCK_STORES,
   MOCK_PRODUCTS,
   MOCK_REVIEWS,
-  MOCK_PENDING_PRODUCTS,
-  MOCK_PENDING_REVIEWS,
 } from './mockData';
 
 // ── Toggle this to false when your backend is ready ──────────
@@ -52,9 +50,7 @@ export const productService = {
     if (USE_MOCK) {
       const q = query.toLowerCase();
       const filtered = MOCK_PRODUCTS.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.category.toLowerCase().includes(q),
+        (p) => p.name.toLowerCase().includes(q)
       );
       return mockResponse(filtered);
     }
@@ -74,25 +70,27 @@ export const productService = {
     return api.get<ApiResponse<Product>>(`/products/${id}`);
   },
 
-  submit: (_data: FormData) => {
+  submit: (data: { name: string; storeId: string; price: number; image: string }) => {
     if (USE_MOCK) {
       // Simulate a successful submission
-      const pending: PendingProduct = {
+      const pending: Product = {
         _id: `pend-${Date.now()}`,
-        name: _data.get('name') as string,
-        category: 'Uncategorized',
-        storeName: 'Unknown Store',
-        storeId: _data.get('storeId') as string,
-        price: parseFloat(_data.get('price') as string) || 0,
+        name: data.name,
+        image: data.image,
+        prices: [{
+          storeId: data.storeId,
+          storeName: 'Unknown Store',
+          price: data.price,
+          inStock: true,
+          lastUpdated: new Date().toISOString().split('T')[0]
+        }],
         submittedBy: 'Anonymous Student',
         submittedDate: new Date().toISOString().split('T')[0],
         status: 'pending',
       };
       return mockResponse(pending);
     }
-    return api.post<ApiResponse<PendingProduct>>('/products/submit', _data, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    return api.post<ApiResponse<Product>>('/products/submit', data);
   },
 };
 
@@ -155,43 +153,39 @@ export const reviewService = {
 
 export const adminService = {
   getPendingProducts: () => {
-    if (USE_MOCK) return mockResponse([...MOCK_PENDING_PRODUCTS]);
-    return api.get<ApiResponse<PendingProduct[]>>('/admin/products/pending');
+    if (USE_MOCK) return mockResponse([]);
+    return api.get<ApiResponse<Product[]>>('/admin/products/pending');
   },
 
   approveProduct: (id: string) => {
     if (USE_MOCK) {
-      const p = MOCK_PENDING_PRODUCTS.find((x) => x._id === id)!;
-      return mockResponse({ ...p, status: 'approved' as const });
+      return mockResponse({ _id: id, status: 'approved' as const } as Product);
     }
-    return api.patch<ApiResponse<PendingProduct>>(`/admin/products/${id}/approve`);
+    return api.patch<ApiResponse<Product>>(`/admin/products/${id}/approve`);
   },
 
   rejectProduct: (id: string) => {
     if (USE_MOCK) {
-      const p = MOCK_PENDING_PRODUCTS.find((x) => x._id === id)!;
-      return mockResponse({ ...p, status: 'rejected' as const });
+      return mockResponse({ _id: id, status: 'rejected' as const } as Product);
     }
-    return api.patch<ApiResponse<PendingProduct>>(`/admin/products/${id}/reject`);
+    return api.patch<ApiResponse<Product>>(`/admin/products/${id}/reject`);
   },
 
   getPendingReviews: () => {
-    if (USE_MOCK) return mockResponse([...MOCK_PENDING_REVIEWS]);
+    if (USE_MOCK) return mockResponse([]);
     return api.get<ApiResponse<Review[]>>('/admin/reviews/pending');
   },
 
   approveReview: (id: string) => {
     if (USE_MOCK) {
-      const r = MOCK_PENDING_REVIEWS.find((x) => x._id === id)!;
-      return mockResponse({ ...r, status: 'approved' as const });
+      return mockResponse({ _id: id, status: 'approved' as const } as Review);
     }
     return api.patch<ApiResponse<Review>>(`/admin/reviews/${id}/approve`);
   },
 
   rejectReview: (id: string) => {
     if (USE_MOCK) {
-      const r = MOCK_PENDING_REVIEWS.find((x) => x._id === id)!;
-      return mockResponse({ ...r, status: 'rejected' as const });
+      return mockResponse({ _id: id, status: 'rejected' as const } as Review);
     }
     return api.patch<ApiResponse<Review>>(`/admin/reviews/${id}/reject`);
   },
@@ -205,6 +199,23 @@ export const adminService = {
       return Promise.reject(new Error('Invalid credentials'));
     }
     return api.post<ApiResponse<{ token: string }>>('/admin/login', credentials);
+  },
+
+  getStats: () => {
+    if (USE_MOCK) {
+      return mockResponse({
+        pendingProducts: 5,
+        approvedProducts: 24,
+        rejectedProducts: 8,
+        pendingReviews: 3,
+      });
+    }
+    return api.get<ApiResponse<{
+      pendingProducts: number;
+      approvedProducts: number;
+      rejectedProducts: number;
+      pendingReviews: number;
+    }>>('/admin/stats');
   },
 };
 

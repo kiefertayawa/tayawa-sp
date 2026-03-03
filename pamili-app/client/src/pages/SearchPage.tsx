@@ -119,7 +119,13 @@ export default function SearchPage() {
       if (filters.openNow && !isOpenNow(s)) return false;
       return true;
     })
-    .map(g => ({ ...g, products: [...g.products].sort((a, b) => filters.sortBy === 'price-asc' ? a.price - b.price : filters.sortBy === 'price-desc' ? b.price - a.price : b.product.rating - a.product.rating) }))
+    .map(g => ({
+      ...g,
+      products: [...g.products].sort((a, b) =>
+        filters.sortBy === 'price-asc' ? a.price - b.price :
+          filters.sortBy === 'price-desc' ? b.price - a.price : 0
+      )
+    }))
     .sort((a, b) => filters.sortBy === 'rating' ? (b.storeData?.rating ?? 0) - (a.storeData?.rating ?? 0) : 0);
 
   const totalProducts = results.length;
@@ -406,13 +412,31 @@ export default function SearchPage() {
                           return (
                             <div key={`${storeId}-${product._id}`} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '12px 20px', borderTop: '1px solid #f9fafb' }}>
                               {/* Image */}
-                              <img src={product.image} alt={product.name} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: '10px', flexShrink: 0 }} />
+                              <img
+                                src={product.image}
+                                alt={product.name}
+                                style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: '10px', flexShrink: 0 }}
+                                onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=Invalid+Image+Link')}
+                              />
 
                               {/* Middle: name + badge grouped together, centered */}
-                              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '3px' }}>
                                 <p style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', margin: 0 }}>{product.name}</p>
+
+                                {product.updatedAt && (
+                                  <p style={{ fontSize: '0.72rem', color: '#6b7280', margin: 0 }}>
+                                    Last added: {new Date(product.updatedAt).toLocaleString(undefined, {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric',
+                                      hour: 'numeric',
+                                      minute: '2-digit'
+                                    })}
+                                  </p>
+                                )}
+
                                 {isLowest && (
-                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.72rem', fontWeight: 700, color: '#fff', backgroundColor: '#16a34a', borderRadius: '999px', padding: '2px 9px', width: 'fit-content' }}>
+                                  <span style={{ marginTop: '2px', display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.72rem', fontWeight: 700, color: '#fff', backgroundColor: '#16a34a', borderRadius: '999px', padding: '2px 9px', width: 'fit-content' }}>
                                     <TrendingDown style={{ width: 10, height: 10 }} /> Lowest Price
                                   </span>
                                 )}

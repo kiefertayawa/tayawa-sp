@@ -1,12 +1,11 @@
-const express        = require('express');
-const router         = express.Router();
-const jwt            = require('jsonwebtoken');
-const Admin          = require('../models/Admin');
-const Product        = require('../models/Product');
-const PendingProduct = require('../models/PendingProduct');
-const Review         = require('../models/Review');
-const Store          = require('../models/Store');
-const auth           = require('../middleware/auth');
+const express = require('express');
+const router = express.Router();
+const jwt = require('jsonwebtoken');
+const Admin = require('../models/Admin');
+const Product = require('../models/Product');
+const Review = require('../models/Review');
+const Store = require('../models/Store');
+const auth = require('../middleware/auth');
 
 // ─── POST /api/admin/login ─────────────────────────────
 router.post('/login', async (req, res) => {
@@ -33,12 +32,35 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// ─── Pending Products ─────────────────────────────────
+// ─── Products & Submissions ───────────────────────────
+
+// GET /api/admin/stats
+router.get('/stats', auth, async (req, res) => {
+  try {
+    const [pendingProducts, approvedProducts, rejectedProducts, pendingReviews] = await Promise.all([
+      Product.countDocuments({ status: 'pending' }),
+      Product.countDocuments({ status: 'approved' }),
+      Product.countDocuments({ status: 'rejected' }),
+      Review.countDocuments({ status: 'pending' }),
+    ]);
+    res.json({
+      success: true,
+      data: {
+        pendingProducts,
+        approvedProducts,
+        rejectedProducts,
+        pendingReviews,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // GET /api/admin/products/pending
 router.get('/products/pending', auth, async (req, res) => {
   try {
-    const pending = await PendingProduct.find({ status: 'pending' }).sort({ createdAt: -1 });
+    const pending = await Product.find({ status: 'pending' }).sort({ createdAt: -1 });
     res.json({ success: true, data: pending });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -48,53 +70,65 @@ router.get('/products/pending', auth, async (req, res) => {
 // PATCH /api/admin/products/:id/approve
 router.patch('/products/:id/approve', auth, async (req, res) => {
   try {
-    const pending = await PendingProduct.findByIdAndUpdate(
-      req.params.id, { status: 'approved' }, { new: true }
-    );
-    if (!pending) return res.status(404).json({ success: false, error: 'Not found' });
+    // 1. Find the pending product submission (Submission is a Product doc with status: 'pending')
+    const pending = await Product.findOne({ _id: req.params.id, status: 'pending' });
+    if (!pending) return res.status(404).json({ success: false, error: 'Pending submission not found' });
 
-    // Add price to the actual Product collection (or create it if new)
     const today = new Date().toISOString().split('T')[0];
-    let product = await Product.findOne({ name: pending.name });
+    const submissionStore = pending.prices[0]; // submissions from form always have 1 price entry
 
-    if (product) {
-      // Update existing product price for this store
-      const existingPrice = product.prices.find(
-        (p) => p.storeId.toString() === pending.storeId.toString()
+    // 2. Check if an APPROVED product with the same name already exists
+    let existingProduct = await Product.findOne({
+      name: { $regex: new RegExp(`^${pending.name}$`, 'i') },
+      status: 'approved'
+    });
+
+    if (existingProduct) {
+      // Logic: Merge the submission's price into the existing approved product
+      const existingPriceIdx = existingProduct.prices.findIndex(
+        (p) => p.storeId.toString() === submissionStore.storeId.toString()
       );
-      if (existingPrice) {
-        // Archive old price to history
-        product.priceHistory.push({ date: today, price: existingPrice.price });
-        existingPrice.price       = pending.price;
-        existingPrice.lastUpdated = today;
-        existingPrice.inStock     = true;
+
+      if (existingPriceIdx > -1) {
+        const existingPrice = existingProduct.prices[existingPriceIdx];
+        // Move old price to history
+        existingProduct.priceHistory.push({ date: existingPrice.lastUpdated || today, price: existingPrice.price });
+
+        // Update to new price
+        existingProduct.prices[existingPriceIdx].price = submissionStore.price;
+        existingProduct.prices[existingPriceIdx].lastUpdated = today;
+        existingProduct.prices[existingPriceIdx].inStock = true;
       } else {
-        product.prices.push({
-          storeId:     pending.storeId,
-          storeName:   pending.storeName,
-          price:       pending.price,
+        // Add as a new store entry
+        existingProduct.prices.push({
+          storeId: submissionStore.storeId,
+          storeName: submissionStore.storeName,
+          price: submissionStore.price,
           lastUpdated: today,
-          inStock:     true,
+          inStock: true,
         });
       }
-    } else {
-      // Create new product
-      product = new Product({
-        name:     pending.name,
-        category: pending.category,
-        image:    pending.image || '',
-        prices:   [{
-          storeId:     pending.storeId,
-          storeName:   pending.storeName,
-          price:       pending.price,
-          lastUpdated: today,
-          inStock:     true,
-        }],
-      });
-    }
 
-    await product.save();
-    res.json({ success: true, data: pending, message: 'Approved and added to products' });
+      // Preserve image if existing has none
+      if (!existingProduct.image && pending.image) {
+        existingProduct.image = pending.image;
+      }
+
+      await existingProduct.save();
+
+      // Delete the pending submission as it's now merged into the existing approved doc
+      await Product.findByIdAndDelete(pending._id);
+
+      res.json({ success: true, data: existingProduct, message: 'Merged into existing approved product' });
+    } else {
+      // 3. No existing approved product; just flip the status of this one to approved
+      pending.status = 'approved';
+      if (pending.prices.length > 0) {
+        pending.prices[0].lastUpdated = today;
+      }
+      await pending.save();
+      res.json({ success: true, data: pending, message: 'Approved as new product' });
+    }
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -103,11 +137,13 @@ router.patch('/products/:id/approve', auth, async (req, res) => {
 // PATCH /api/admin/products/:id/reject
 router.patch('/products/:id/reject', auth, async (req, res) => {
   try {
-    const pending = await PendingProduct.findByIdAndUpdate(
-      req.params.id, { status: 'rejected' }, { new: true }
+    const rejected = await Product.findOneAndUpdate(
+      { _id: req.params.id, status: 'pending' },
+      { status: 'rejected' },
+      { new: true }
     );
-    if (!pending) return res.status(404).json({ success: false, error: 'Not found' });
-    res.json({ success: true, data: pending });
+    if (!rejected) return res.status(404).json({ success: false, error: 'Pending submission not found' });
+    res.json({ success: true, data: rejected });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -137,7 +173,7 @@ router.patch('/reviews/:id/approve', auth, async (req, res) => {
     const allReviews = await Review.find({ storeId: review.storeId, status: 'approved' });
     const avg = allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length;
     await Store.findByIdAndUpdate(review.storeId, {
-      rating:      Math.round(avg * 10) / 10,
+      rating: Math.round(avg * 10) / 10,
       reviewCount: allReviews.length,
     });
 
