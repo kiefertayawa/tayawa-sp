@@ -1,8 +1,17 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
-import { GoogleMap, OverlayView } from '@react-google-maps/api';
+import { useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import type { Store as StoreType } from '../../types';
 
-const DEFAULT_CENTER = { lat: 14.1664, lng: 121.2417 };
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+const DEFAULT_CENTER: [number, number] = [14.1664, 121.2417];
 
 const crowdColor: Record<string, string> = {
     low: '#16a34a',
@@ -10,17 +19,52 @@ const crowdColor: Record<string, string> = {
     high: '#dc2626',
 };
 
-const MAP_OPTIONS: google.maps.MapOptions = {
-    disableDefaultUI: false,
-    zoomControl: true,
-    streetViewControl: false,
-    mapTypeControl: false,
-    fullscreenControl: false,
-    styles: [
-        { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-        { featureType: 'transit', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-    ],
-};
+// ── Build search pin icon ─────────────────────────────────────────────────────
+// The label (price) is embedded directly in the HTML.
+// Hover is pure CSS — no React state → no other markers shifting.
+// Highlighted state uses a different CSS class injected via HTML class attribute.
+function buildSearchIcon(color: string, price: number, highlighted: boolean) {
+    const cls = highlighted ? 'pamili-search-pin highlighted' : 'pamili-search-pin';
+    const labelBg = highlighted ? '#8B1538' : '#111827';
+    return L.divIcon({
+        className: '',
+        iconSize: [10, 58],    // fixed — never changes on hover
+        iconAnchor: [5, 58],   // bottom-center anchored at pin tip
+        html: `
+      <div class="${cls}" data-color="${color}">
+        <div class="pamili-search-label" style="background:${labelBg};">&#8369;${price.toFixed(2)}</div>
+        <svg width="26" height="32" viewBox="0 0 30 38" xmlns="http://www.w3.org/2000/svg">
+          ${highlighted ? `<circle cx="15" cy="15" r="14" fill="${color}" fill-opacity="0.2"/>` : ''}
+          <path d="M15 0C6.716 0 0 6.716 0 15c0 10.5 15 23 15 23S30 25.5 30 15C30 6.716 23.284 0 15 0z" fill="${color}"/>
+          <circle cx="15" cy="15" r="7" fill="white" fill-opacity="0.9"/>
+        </svg>
+      </div>
+    `,
+    });
+}
+
+// ── Pan to a lat/lng target ───────────────────────────────────────────────────
+function MapController({ target }: { target: [number, number] | null }) {
+    const map = useMap();
+    useEffect(() => {
+        if (target) map.panTo(target, { animate: true, duration: 0.5 });
+    }, [target, map]);
+    return null;
+}
+
+// ── Fly to user's real GPS on first load ─────────────────────────────────────
+function GeoLocator() {
+    const map = useMap();
+    useEffect(() => {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(
+            (pos) => map.flyTo([pos.coords.latitude, pos.coords.longitude], 17, { duration: 1.2 }),
+            () => { },
+            { timeout: 6000 },
+        );
+    }, [map]);
+    return null;
+}
 
 interface SearchMapProps {
     pins: { store: StoreType; price: number }[];
@@ -29,117 +73,40 @@ interface SearchMapProps {
 }
 
 export default function SearchMap({ pins, onStoreClick, highlightedStoreId }: SearchMapProps) {
-    const mapRef = useRef<google.maps.Map | null>(null);
-    const userLocRef = useRef<{ lat: number; lng: number } | null>(null);
-    const [hoveredStoreId, setHoveredStoreId] = useState<string | null>(null);
-
-    // Get user location once and set map centre
-    useEffect(() => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    userLocRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                    mapRef.current?.panTo(userLocRef.current);
-                },
-                () => { },
-                { timeout: 5000 },
-            );
-        }
-    }, []);
-
-    const onLoad = useCallback((map: google.maps.Map) => {
-        mapRef.current = map;
-        if (userLocRef.current) map.panTo(userLocRef.current);
-    }, []);
-
-    // Pan to highlighted store when it changes
-    useEffect(() => {
-        if (!highlightedStoreId || !mapRef.current) return;
+    const panTarget = (() => {
+        if (!highlightedStoreId) return null;
         const pin = pins.find(p => p.store._id === highlightedStoreId);
-        if (pin?.store.location) {
-            mapRef.current.panTo({ lat: pin.store.location.lat, lng: pin.store.location.lng });
-        }
-    }, [highlightedStoreId, pins]);
+        return pin ? [pin.store.location.lat, pin.store.location.lng] as [number, number] : null;
+    })();
 
     return (
-        <GoogleMap
-            mapContainerStyle={{ width: '100%', height: '100%' }}
+        <MapContainer
             center={DEFAULT_CENTER}
             zoom={16}
-            options={MAP_OPTIONS}
-            onLoad={onLoad}
+            style={{ width: '100%', height: '100%', zIndex: 0 }}
+            scrollWheelZoom
         >
-            {pins.map(({ store, price }) => {
-                const pinColor = crowdColor[store.crowdLevel] ?? '#8B1538';
-                const isHighlighted = highlightedStoreId === store._id;
-                const isHovered = hoveredStoreId === store._id;
+            <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                maxZoom={19}
+            />
+            <GeoLocator />
+            <MapController target={panTarget} />
 
-                return (
-                    <OverlayView
-                        key={store._id}
-                        position={{ lat: store.location.lat, lng: store.location.lng }}
-                        mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-                    >
-                        <div
-                            onClick={() => onStoreClick(store._id)}
-                            onMouseEnter={() => setHoveredStoreId(store._id)}
-                            onMouseLeave={() => setHoveredStoreId(null)}
-                            title={store.name}
-                            style={{
-                                position: 'absolute',
-                                transform: `translate(-50%, -100%) scale(${isHovered ? 1.15 : 1})`,
-                                transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                userSelect: 'none',
-                                zIndex: isHighlighted || isHovered ? 20 : 10,
-                            }}
-                        >
-                            {/* Price label */}
-                            <div style={{
-                                position: 'absolute',
-                                bottom: '100%',
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                                marginBottom: '4px',
-                                backgroundColor: isHighlighted ? '#8B1538' : '#111827',
-                                color: '#fff',
-                                fontSize: '0.86rem', // Made text bigger
-                                fontWeight: 700,     // Bolder text
-                                padding: '4px 10px',
-                                borderRadius: '6px',
-                                whiteSpace: 'nowrap',
-                                pointerEvents: 'none',
-                                opacity: isHighlighted || isHovered ? 1 : 0.9,
-                                boxShadow: isHighlighted ? '0 2px 8px rgba(139,21,56,0.4)' : '0 2px 5px rgba(0,0,0,0.2)',
-                            }}>
-                                ₱{price.toFixed(2)}
-                            </div>
-
-                            {/* Pin SVG — enlarged + glowing when highlighted */}
-                            <svg
-                                width={isHighlighted ? 40 : 30}
-                                height={isHighlighted ? 50 : 38}
-                                viewBox="0 0 30 38"
-                                style={{
-                                    filter: isHighlighted
-                                        ? `drop-shadow(0 0 6px ${pinColor})`
-                                        : 'drop-shadow(0 1px 3px rgba(0,0,0,0.3))',
-                                    transition: 'all 0.2s ease',
-                                }}
-                            >
-                                {isHighlighted && (
-                                    <circle cx="15" cy="15" r="14" fill={pinColor} fillOpacity="0.2" />
-                                )}
-                                <path d="M15 0C6.716 0 0 6.716 0 15c0 10.5 15 23 15 23S30 25.5 30 15C30 6.716 23.284 0 15 0z" fill={pinColor} />
-                                <circle cx="15" cy="15" r="7" fill="white" fillOpacity="0.9" />
-                            </svg>
-                        </div>
-                    </OverlayView>
-                );
-            })}
-        </GoogleMap>
+            {pins.map(({ store, price }) => (
+                <Marker
+                    key={store._id}
+                    position={[store.location.lat, store.location.lng]}
+                    icon={buildSearchIcon(
+                        crowdColor[store.crowdLevel] ?? '#8B1538',
+                        price,
+                        highlightedStoreId === store._id,
+                    )}
+                    zIndexOffset={highlightedStoreId === store._id ? 1000 : 0}
+                    eventHandlers={{ click: () => onStoreClick(store._id) }}
+                />
+            ))}
+        </MapContainer>
     );
 }

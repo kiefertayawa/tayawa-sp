@@ -43,3 +43,94 @@ textarea {
   font-family: inherit;
   font-size: inherit;
 }
+
+/* ── Leaflet map z-index fix (stays behind modals/header) ─── */
+.leaflet-container {
+  z-index: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PAMILI MAP PINS
+   Both pin types use transform-origin: bottom center so the
+   pin TIP stays fixed in place while the pin scales upward.
+   Hover is pure CSS — no React state, other pins never shift.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── HOME MAP pin ─────────────────────────────────────────── */
+.pamili-home-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* overflow visible so label can extend past iconSize bounds */
+  overflow: visible;
+  cursor: pointer;
+  transform-origin: bottom center;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Ensure the pin tip is exactly at the anchor point */
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.pamili-home-pin:hover {
+  transform: translateX(-50%) scale(1.2);
+}
+
+.pamili-home-label {
+  background: #1f2937;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  padding: 3px 9px;
+  border-radius: 6px;
+  white-space: nowrap;
+  margin-bottom: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+  letter-spacing: 0.01em;
+}
+
+/* ── SEARCH MAP pin ───────────────────────────────────────── */
+.pamili-search-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: visible;
+  cursor: pointer;
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  transform-origin: bottom center;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.pamili-search-pin:hover {
+  transform: translateX(-50%) scale(1.18);
+}
+
+.pamili-search-pin.highlighted {
+  transform: translateX(-50%) scale(1.28);
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+.pamili-search-pin.highlighted:hover {
+  transform: translateX(-50%) scale(1.35);
+}
+
+.pamili-search-label {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  padding: 4px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  margin-bottom: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+  letter-spacing: 0.01em;
+  transition: background 0.2s;
+}

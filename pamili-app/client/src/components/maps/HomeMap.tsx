@@ -1,22 +1,19 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { GoogleMap, OverlayView } from '@react-google-maps/api';
+import { useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { useNavigate } from 'react-router-dom';
 import type { Store } from '../../types';
 
-// Default centre: Los Baños, Laguna
-const DEFAULT_CENTER = { lat: 14.1664, lng: 121.2417 };
+// Fix Leaflet default icon paths in Vite
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 
-const MAP_OPTIONS: google.maps.MapOptions = {
-    disableDefaultUI: false,
-    zoomControl: true,
-    streetViewControl: false,
-    mapTypeControl: false,
-    fullscreenControl: false,
-    styles: [
-        { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-        { featureType: 'transit', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-    ],
-};
+const DEFAULT_CENTER: [number, number] = [14.1664, 121.2417];
 
 const crowdColor: Record<string, string> = {
     low: '#16a34a',
@@ -24,110 +21,76 @@ const crowdColor: Record<string, string> = {
     high: '#dc2626',
 };
 
+// ── Build a divIcon with the label embedded in HTML ─────────────────────────
+// iconSize is fixed so Leaflet never repositions other markers on hover.
+// CSS :hover on .pamili-home-pin scales from bottom-center (pin tip stays put).
+function buildHomeIcon(color: string, name: string) {
+    return L.divIcon({
+        className: '',
+        // Fixed container: wide enough for most names, tall enough for label+gap+pin
+        iconSize: [10, 58],
+        iconAnchor: [5, 58], // bottom-center of pin (not label)
+        html: `
+      <div class="pamili-home-pin" data-color="${color}">
+        <div class="pamili-home-label">${name}</div>
+        <svg width="26" height="32" viewBox="0 0 30 38" xmlns="http://www.w3.org/2000/svg">
+          <path d="M15 0C6.716 0 0 6.716 0 15c0 10.5 15 23 15 23S30 25.5 30 15C30 6.716 23.284 0 15 0z" fill="${color}"/>
+          <circle cx="15" cy="15" r="7" fill="white" fill-opacity="0.9"/>
+        </svg>
+      </div>
+    `,
+    });
+}
+
+// ── Pan to user's real GPS location ─────────────────────────────────────────
+function GeoLocator() {
+    const map = useMap();
+    useEffect(() => {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(
+            (pos) => map.flyTo([pos.coords.latitude, pos.coords.longitude], 17, { duration: 1.2 }),
+            () => { },
+            { timeout: 6000 },
+        );
+    }, [map]);
+    return null;
+}
+
 interface HomeMapProps {
     stores: Store[];
     height?: string | number;
 }
 
-export default function HomeMap({ stores, height = '400px' }: HomeMapProps) {
+export default function HomeMap({ stores, height = '560px' }: HomeMapProps) {
     const navigate = useNavigate();
-    const [center, setCenter] = useState(DEFAULT_CENTER);
-    const [activePin, setActivePin] = useState<string | null>(null);
-    const mapRef = useRef<google.maps.Map | null>(null);
-
-    // Get user's real location
-    useEffect(() => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-                () => setCenter(DEFAULT_CENTER),
-                { timeout: 5000 },
-            );
-        }
-    }, []);
-
-    const onLoad = useCallback((map: google.maps.Map) => {
-        mapRef.current = map;
-    }, []);
-
-    const containerStyle = {
-        width: '100%',
-        height: typeof height === 'number' ? `${height}px` : height,
-        borderRadius: '16px',
-    };
 
     return (
-        <GoogleMap
-            mapContainerStyle={containerStyle}
-            center={center}
+        <MapContainer
+            center={DEFAULT_CENTER}
             zoom={16}
-            options={MAP_OPTIONS}
-            onLoad={onLoad}
+            style={{
+                width: '100%',
+                height: typeof height === 'number' ? `${height}px` : height,
+                borderRadius: '16px',
+                zIndex: 0,
+            }}
+            scrollWheelZoom
         >
-            {stores.map((store) => {
-                const pinColor = crowdColor[store.crowdLevel] ?? '#8B1538';
-                const isActive = activePin === store._id;
-                return (
-                    <OverlayView
-                        key={store._id}
-                        position={{ lat: store.location.lat, lng: store.location.lng }}
-                        mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-                    >
-                        <div
-                            onClick={() => navigate(`/store/${store._id}`)}
-                            onMouseEnter={() => setActivePin(store._id)}
-                            onMouseLeave={() => setActivePin(null)}
-                            title={store.name}
-                            style={{
-                                position: 'absolute',
-                                transform: 'translate(-50%, -100%)',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                userSelect: 'none',
-                            }}
-                        >
-                            {/* Tooltip on hover */}
-                            {isActive && (
-                                <div style={{
-                                    position: 'absolute',
-                                    bottom: '100%',
-                                    left: '50%',
-                                    transform: 'translateX(-50%)',
-                                    marginBottom: '6px',
-                                    backgroundColor: '#111827',
-                                    color: '#fff',
-                                    fontSize: '0.72rem',
-                                    fontWeight: 600,
-                                    padding: '4px 10px',
-                                    borderRadius: '6px',
-                                    whiteSpace: 'nowrap',
-                                    pointerEvents: 'none',
-                                    zIndex: 10,
-                                }}>
-                                    {store.name}
-                                </div>
-                            )}
-                            {/* Pin SVG */}
-                            <svg
-                                width={isActive ? 36 : 30}
-                                height={isActive ? 44 : 36}
-                                viewBox="0 0 30 38"
-                                style={{
-                                    filter: isActive
-                                        ? 'drop-shadow(0 3px 6px rgba(0,0,0,0.35))'
-                                        : 'drop-shadow(0 1px 3px rgba(0,0,0,0.25))',
-                                    transition: 'all 0.15s ease',
-                                }}
-                            >
-                                <path d="M15 0C6.716 0 0 6.716 0 15c0 10.5 15 23 15 23S30 25.5 30 15C30 6.716 23.284 0 15 0z" fill={pinColor} />
-                                <circle cx="15" cy="15" r="7" fill="white" fillOpacity="0.9" />
-                            </svg>
-                        </div>
-                    </OverlayView>
-                );
-            })}
-        </GoogleMap>
+            <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                maxZoom={19}
+            />
+            <GeoLocator />
+
+            {stores.map((store) => (
+                <Marker
+                    key={store._id}
+                    position={[store.location.lat, store.location.lng]}
+                    icon={buildHomeIcon(crowdColor[store.crowdLevel] ?? '#8B1538', store.name)}
+                    eventHandlers={{ click: () => navigate(`/store/${store._id}`) }}
+                />
+            ))}
+        </MapContainer>
     );
 }
