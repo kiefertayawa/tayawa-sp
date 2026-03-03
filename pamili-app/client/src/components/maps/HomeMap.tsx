@@ -45,14 +45,47 @@ function buildHomeIcon(color: string, name: string) {
 // ── Pan to user's real GPS location ─────────────────────────────────────────
 function GeoLocator() {
     const map = useMap();
+
     useEffect(() => {
         if (!navigator.geolocation) return;
+
         navigator.geolocation.getCurrentPosition(
-            (pos) => map.flyTo([pos.coords.latitude, pos.coords.longitude], 17, { duration: 1.2 }),
+            (pos) => {
+                const { latitude, longitude } = pos.coords;
+
+                // Fly to user
+                map.flyTo([latitude, longitude], 17, { duration: 1.2 });
+
+                // Add a circle marker (blue dot)
+                L.circleMarker([latitude, longitude], {
+                    radius: 8,
+                    fillColor: '#2563eb',
+                    color: '#ffffff',
+                    weight: 2,
+                    fillOpacity: 1,
+                }).addTo(map);
+            },
             () => { },
-            { timeout: 6000 },
+            { timeout: 6000 }
         );
     }, [map]);
+
+    return null;
+}
+
+function FitBounds({ stores }: { stores: Store[] }) {
+    const map = useMap();
+
+    useEffect(() => {
+        if (!stores.length) return;
+
+        const bounds = L.latLngBounds(
+            stores.map(s => [s.location.lat, s.location.lng])
+        );
+
+        map.fitBounds(bounds, { padding: [50, 50] });
+    }, [stores, map]);
+
     return null;
 }
 
@@ -82,6 +115,8 @@ export default function HomeMap({ stores, height = '560px' }: HomeMapProps) {
                 maxZoom={19}
             />
             <GeoLocator />
+
+            <FitBounds stores={stores} />
 
             {stores.map((store) => (
                 <Marker

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -43,6 +43,46 @@ function buildSearchIcon(color: string, price: number, highlighted: boolean) {
     });
 }
 
+function UserLocationMarker() {
+    const [position, setPosition] = useState<[number, number] | null>(null);
+    const map = useMap();
+
+    useEffect(() => {
+        if (!navigator.geolocation) return;
+
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const coords: [number, number] = [
+                    pos.coords.latitude,
+                    pos.coords.longitude,
+                ];
+
+                setPosition(coords);
+            }
+        );
+    }, []);
+
+    if (!position) return null;
+
+    return (
+        <Marker
+            position={position}
+            icon={L.divIcon({
+                className: '',
+                html: `<div style="
+          width:16px;
+          height:16px;
+          background:#2563eb;
+          border-radius:50%;
+          border:3px solid white;
+        "></div>`,
+                iconSize: [16, 16],
+                iconAnchor: [8, 8],
+            })}
+        />
+    );
+}
+
 // ── Pan to a lat/lng target ───────────────────────────────────────────────────
 function MapController({ target }: { target: [number, number] | null }) {
     const map = useMap();
@@ -72,6 +112,22 @@ interface SearchMapProps {
     highlightedStoreId?: string | null;
 }
 
+function FitBounds({ pins }: { pins: any[] }) {
+    const map = useMap();
+
+    useEffect(() => {
+        if (!pins.length) return;
+
+        const bounds = L.latLngBounds(
+            pins.map(p => [p.store.location.lat, p.store.location.lng])
+        );
+
+        map.fitBounds(bounds, { padding: [50, 50] });
+    }, [pins, map]);
+
+    return null;
+}
+
 export default function SearchMap({ pins, onStoreClick, highlightedStoreId }: SearchMapProps) {
     const panTarget = (() => {
         if (!highlightedStoreId) return null;
@@ -93,6 +149,8 @@ export default function SearchMap({ pins, onStoreClick, highlightedStoreId }: Se
             />
             <GeoLocator />
             <MapController target={panTarget} />
+            <FitBounds pins={pins} />
+            <UserLocationMarker />
 
             {pins.map(({ store, price }) => (
                 <Marker
