@@ -25,7 +25,7 @@ export default function HomePage() {
           </h2>
           <p style={{ fontSize: '1rem', color: '#6b7280', margin: 0 }}>
             Compare prices and{' '}
-            <span style={{ color: '#0d9488', fontWeight: 500 }}>find the best deals</span>
+            <span style={{ color: '#014421', fontWeight: 600 }}>find the best deals</span>
             {' '}near you!
           </p>
         </div>
@@ -159,7 +159,7 @@ function StoreCard({ store, onClick }: { store: Store; onClick: () => void }) {
         </div>
 
         {/* Address — teal */}
-        <p style={{ fontSize: '0.82rem', color: '#0d9488', margin: '0 0 8px' }}>
+        <p style={{ fontSize: '0.82rem', color: '#014421', margin: '0 0 8px' }}>
           {store.address}
         </p>
 
@@ -167,7 +167,7 @@ function StoreCard({ store, onClick }: { store: Store; onClick: () => void }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '12px' }}>
           <Star style={{ width: 15, height: 15, fill: '#facc15', color: '#facc15' }} />
           <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>{store.rating}</span>
-          <span style={{ fontSize: '0.85rem', color: '#9ca3af' }}>({store.reviewCount})</span>
+          <span style={{ fontSize: '0.85rem', color: '#9ca3af' }}>({store.reviewCount} reviews)</span>
         </div>
 
         {/* Peak hours */}

@@ -431,7 +431,7 @@ export default function SearchPage() {
 
                                 {product.updatedAt && (
                                   <p style={{ fontSize: '0.72rem', color: '#6b7280', margin: 0 }}>
-                                    Last added: {new Date(product.updatedAt).toLocaleString(undefined, {
+                                    Last updated: {new Date(product.updatedAt).toLocaleString(undefined, {
                                       month: 'short',
                                       day: 'numeric',
                                       year: 'numeric',

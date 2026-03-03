@@ -494,16 +494,22 @@ export default function AdminPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    {['Store', 'Rating', 'Review', 'Date', 'Actions'].map(h => (
+                    {[
+                      { l: 'Store', w: '22%' },
+                      { l: 'Rating', w: '12%' },
+                      { l: 'Review', w: '40%' },
+                      { l: 'Date', w: '13%' },
+                      { l: 'Actions', w: '13%' }
+                    ].map(h => (
                       <th
-                        key={h}
+                        key={h.l}
                         style={{
-                          textAlign: 'left', padding: '12px 18px',
+                          textAlign: 'left', padding: '16px 20px',
                           fontSize: '0.8rem', fontWeight: 700,
-                          color: '#374151',
+                          color: '#374151', width: h.w
                         }}
                       >
-                        {h}
+                        {h.l}
                       </th>
                     ))}
                   </tr>
@@ -522,10 +528,10 @@ export default function AdminPage() {
                         transition: 'background-color 0.2s',
                       }}
                     >
-                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 500, color: '#111827' }}>
+                      <td style={{ padding: '16px 20px', fontSize: '0.875rem', fontWeight: 500, color: '#111827', width: '22%' }}>
                         {stores.find(st => st._id === r.storeId)?.name ?? 'Unknown Store'}
                       </td>
-                      <td style={{ padding: '14px 18px' }}>
+                      <td style={{ padding: '16px 20px', width: '12%' }}>
                         <div style={{ display: 'flex', gap: '2px' }}>
                           {[1, 2, 3, 4, 5].map(s => (
                             <Star
@@ -537,12 +543,16 @@ export default function AdminPage() {
                       </td>
                       <td
                         style={{
-                          padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280',
-                          maxWidth: '320px',
+                          padding: '16px 20px', fontSize: '0.875rem', color: '#6b7280',
+                          width: '40%',
                         }}
                       >
                         <div style={{ transition: 'opacity 0.2s' }}>
-                          <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: r.images?.length ? '8px' : '0' }}>
+                          <span style={{
+                            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden', marginBottom: r.images?.length ? '8px' : '0',
+                            wordBreak: 'break-all'
+                          }}>
                             {r.text}
                           </span>
                           {r.images && r.images.length > 0 && (
@@ -558,8 +568,8 @@ export default function AdminPage() {
                           )}
                         </div>
                       </td>
-                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280' }}>{formatShortDate(r.date)}</td>
-                      <td style={{ padding: '14px 18px' }} onClick={e => e.stopPropagation()}>
+                      <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#6b7280', width: '13%' }}>{formatShortDate(r.date)}</td>
+                      <td style={{ padding: '16px 20px', width: '13%' }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
                             onClick={() => handleApproveReview(r._id)}
@@ -625,7 +635,10 @@ export default function AdminPage() {
                 Confirm {confirmModal.action === 'delete' ? 'Deletion' : 'Rejection'}
               </h3>
               <p style={{ fontSize: '0.9rem', color: '#6b7280', margin: '0 0 24px', lineHeight: 1.5, wordBreak: 'break-word' }}>
-                Are you sure you want to {confirmModal.action === 'delete' ? 'delete' : 'reject'} the {confirmModal.type} <strong style={{ wordBreak: 'break-all' }}>{confirmModal.name}</strong>?
+                {confirmModal.type === 'review'
+                  ? "Are you sure you want to delete this review?"
+                  : <>Are you sure you want to {confirmModal.action === 'delete' ? 'delete' : 'reject'} the {confirmModal.type} <strong style={{ wordBreak: 'break-all' }}>{confirmModal.name}</strong>?</>
+                }
               </p>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
@@ -636,7 +649,7 @@ export default function AdminPage() {
                     borderRadius: '10px', cursor: 'pointer',
                   }}
                 >
-                  Go Back
+                  Back
                 </button>
                 <button
                   onClick={executeConfirmedAction}
@@ -646,7 +659,7 @@ export default function AdminPage() {
                     borderRadius: '10px', cursor: 'pointer',
                   }}
                 >
-                  {confirmModal.action === 'delete' ? 'Delete' : 'Reject'}
+                  {confirmModal.action === 'delete' ? 'Delete' : 'Confirm'}
                 </button>
               </div>
             </div>
@@ -705,7 +718,7 @@ export default function AdminPage() {
                 </div>
 
                 <div style={{ backgroundColor: '#f9fafb', padding: '16px', borderRadius: '12px', border: '1px solid #f3f4f6', marginBottom: '24px' }}>
-                  <p style={{ fontSize: '1rem', color: '#374151', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                  <p style={{ fontSize: '1rem', color: '#374151', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
                     {viewReviewModal.review.text}
                   </p>
                 </div>
@@ -1111,6 +1124,16 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
+// Custom Maroon Icon for Store Pinning
+const maroonIcon = new L.DivIcon({
+  html: `<svg width="24" height="36" viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 0C5.37258 0 0 5.37258 0 12C0 21 12 36 12 36C12 36 24 21 24 12C24 5.37258 18.6274 0 12 0ZM12 16C9.79086 16 8 14.2091 8 12C8 9.79086 9.79086 8 12 8C14.2091 8 16 9.79086 16 12C16 14.2091 14.2091 16 12 16Z" fill="#8B1538"/>
+         </svg>`,
+  className: 'custom-maroon-pin',
+  iconSize: [24, 36],
+  iconAnchor: [12, 36]
+});
+
 function ClickHandler({ onPick }: { onPick: (lat: number, lng: number) => void }) {
   useMapEvents({
     click(e) { onPick(e.latlng.lat, e.latlng.lng); },
@@ -1138,7 +1161,7 @@ function LocationPicker({
         maxZoom={19}
       />
       <ClickHandler onPick={onPick} />
-      {lat != null && lng != null && <Marker position={[lat, lng]} />}
+      {lat != null && lng != null && <Marker position={[lat, lng]} icon={maroonIcon} />}
     </MapContainer>
   );
 }

@@ -408,7 +408,7 @@ function ReviewCard({ review }: { review: any }) {
           ))}
         </div>
       </div>
-      <p style={{ fontSize: '0.875rem', color: '#4b5563', margin: '0 0 12px', lineHeight: 1.6 }}>{review.text}</p>
+      <p style={{ fontSize: '0.875rem', color: '#4b5563', margin: '0 0 12px', lineHeight: 1.6, wordBreak: 'break-all' }}>{review.text}</p>
 
       {review.images && review.images.length > 0 && (
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
