@@ -249,8 +249,12 @@ export default function ReviewsSection({ storeId, storeName, helpText }: Reviews
                 value={text} onChange={e => setText(e.target.value)}
                 placeholder="How was the store? Was it crowded? Are the prices accurate?"
                 rows={4}
+                maxLength={500}
                 style={{ width: '100%', padding: '12px', fontSize: '0.875rem', border: '1.5px solid #e5e7eb', borderRadius: '10px', backgroundColor: '#f9fafb', outline: 'none', resize: 'none', color: '#374151', boxSizing: 'border-box' }}
               />
+              <div style={{ textAlign: 'right', fontSize: '0.75rem', color: text.length >= 500 ? '#dc2626' : '#9ca3af', marginTop: '4px' }}>
+                {text.length} / 500 characters
+              </div>
             </div>
 
             <div style={{ marginBottom: '24px' }}>
@@ -301,79 +305,75 @@ export default function ReviewsSection({ storeId, storeName, helpText }: Reviews
               </button>
             </div>
           </form>
-        </div>
-      )}
+        </div >
+      )
+      }
 
       {/* ── Cancellation Confirmation Modal ── */}
-      {showCancelConfirm && (
-        <>
-          <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 1000 }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', backgroundColor: '#fff', borderRadius: '16px', padding: '28px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)', zIndex: 1001, width: '100%', maxWidth: '360px', textAlign: 'center' }}>
-            <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#fdf2f5', color: '#8B1538', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-              <Trash2 style={{ width: 28, height: 28 }} />
+      {
+        showCancelConfirm && (
+          <>
+            <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 1000 }} />
+            <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', backgroundColor: '#fff', borderRadius: '16px', padding: '28px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)', zIndex: 1001, width: '100%', maxWidth: '360px', textAlign: 'center' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#fdf2f5', color: '#8B1538', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <Trash2 style={{ width: 28, height: 28 }} />
+              </div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>Discard Review?</h3>
+              <p style={{ fontSize: '0.9rem', color: '#6b7280', margin: '0 0 24px', lineHeight: 1.5 }}>You have unsaved changes. Are you sure you want to cancel your review?</p>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button onClick={() => setShowCancelConfirm(false)} style={{ flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600, color: '#374151', backgroundColor: '#f3f4f6', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>No, Continue</button>
+                <button onClick={() => { setShowForm(false); resetForm(); }} style={{ flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600, color: '#fff', backgroundColor: '#8B1538', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>Yes, Discard</button>
+              </div>
             </div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>Discard Review?</h3>
-            <p style={{ fontSize: '0.9rem', color: '#6b7280', margin: '0 0 24px', lineHeight: 1.5 }}>You have unsaved changes. Are you sure you want to cancel your review?</p>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => setShowCancelConfirm(false)} style={{ flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600, color: '#374151', backgroundColor: '#f3f4f6', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>No, Continue</button>
-              <button onClick={() => { setShowForm(false); resetForm(); }} style={{ flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600, color: '#fff', backgroundColor: '#8B1538', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>Yes, Discard</button>
-            </div>
-          </div>
-        </>
-      )}
+          </>
+        )
+      }
 
       {/* ── All Reviews Modal ── */}
-      {showAllModal && (
-        <>
-          <div
-            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 1000 }}
-            onClick={() => setShowAllModal(false)}
-          />
-          <div
-            style={{
-              position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-              backgroundColor: '#fff', borderRadius: '20px', padding: '0',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', zIndex: 1001,
-              width: '90%', maxWidth: '600px', height: '80vh',
-              display: 'flex', flexDirection: 'column', overflow: 'hidden'
-            }}
-          >
-            {/* Modal Header */}
-            <div style={{ padding: '24px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-              <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>All Reviews</h3>
-                <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>Showing {reviews.length} community ratings for {storeName}</p>
+      {
+        showAllModal && (
+          <>
+            <div
+              style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 1000 }}
+              onClick={() => setShowAllModal(false)}
+            />
+            <div
+              style={{
+                position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                backgroundColor: '#fff', borderRadius: '20px', padding: '0',
+                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', zIndex: 1001,
+                width: '90%', maxWidth: '600px', height: '80vh',
+                display: 'flex', flexDirection: 'column', overflow: 'hidden'
+              }}
+            >
+              {/* Modal Header */}
+              <div style={{ padding: '24px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>All Reviews</h3>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>Showing {reviews.length} community ratings for {storeName}</p>
+                </div>
+                <button
+                  onClick={() => setShowAllModal(false)}
+                  style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}
+                >
+                  <X style={{ width: 20, height: 20 }} />
+                </button>
               </div>
-              <button
-                onClick={() => setShowAllModal(false)}
-                style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}
-              >
-                <X style={{ width: 20, height: 20 }} />
-              </button>
-            </div>
 
-            {/* Scrollable Reviews List */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '24px', backgroundColor: '#f9fafb' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {reviews.map(review => (
-                  <ReviewCard key={review._id} review={review} />
-                ))}
+              {/* Scrollable Reviews List */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '24px', backgroundColor: '#f9fafb' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {reviews.map(review => (
+                    <ReviewCard key={review._id} review={review} />
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Modal Footer */}
-            <div style={{ padding: '16px 24px', borderTop: '1px solid #f3f4f6', textAlign: 'center', flexShrink: 0 }}>
-              <button
-                onClick={() => setShowAllModal(false)}
-                style={{ padding: '10px 24px', backgroundColor: '#8B1538', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}
-              >
-                Close
-              </button>
             </div>
-          </div>
-        </>
-      )}
-    </div>
+          </>
+        )
+      }
+    </div >
   );
 }
 
@@ -394,8 +394,14 @@ function ReviewCard({ review }: { review: any }) {
             <User style={{ width: 18, height: 18, color: '#9ca3af' }} />
           </div>
           <div>
-            <p style={{ fontWeight: 600, fontSize: '0.875rem', color: '#374151', margin: '0 0 2px' }}>{review.userName}</p>
-            <p style={{ fontSize: '0.78rem', color: '#9ca3af', margin: 0 }}>{review.date}</p>
+            <p style={{ fontWeight: 600, fontSize: '0.875rem', color: '#374151', margin: '0 0 2px' }}>Anonymous User</p>
+            <p style={{ fontSize: '0.78rem', color: '#9ca3af', margin: 0 }}>
+              {(() => {
+                const d = new Date(review.date);
+                if (isNaN(d.getTime())) return review.date;
+                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+              })()}
+            </p>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '2px' }}>
@@ -412,7 +418,7 @@ function ReviewCard({ review }: { review: any }) {
             <img
               key={i} src={img} alt="Review"
               style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e5e7eb' }}
-              onError={(e) => e.currentTarget.src = 'https://placehold.co/100x100?text=Invalid+Img'}
+              onError={(e) => e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available'}
             />
           ))}
         </div>

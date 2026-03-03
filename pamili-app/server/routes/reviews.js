@@ -35,7 +35,7 @@ router.post('/', async (req, res) => {
       status: 'pending',
       userName: 'Anonymous User',
       images: Array.isArray(req.body.images) ? req.body.images : [],
-      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+      date: new Date().toISOString()
     });
     res.status(201).json({ success: true, data: review, message: 'Review submitted for moderation' });
   } catch (err) {

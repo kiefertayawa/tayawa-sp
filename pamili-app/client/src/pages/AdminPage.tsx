@@ -1,8 +1,32 @@
 import { useState } from 'react';
-import { Star, Package, LogIn, Eye, EyeOff, CheckCircle, X } from 'lucide-react';
+import { Star, Package, LogIn, Eye, EyeOff, CheckCircle, X, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePendingItems } from '../hooks';
 import { useAuth } from '../context/AuthContext';
+
+// Helper to format as "Mar 3, 2026"
+const formatShortDate = (dateStr?: string) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+// Helper to format as "3/3/2026, 8:37:50 PM"
+const formatFullDateTime = (dateStr?: string) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleString('en-US', {
+    month: 'numeric',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+};
 
 export default function AdminPage() {
   const { isAdmin, login } = useAuth();
@@ -20,6 +44,15 @@ export default function AdminPage() {
     id: string;
     name: string;
   }>({ show: false, type: 'product', action: 'reject', id: '', name: '' });
+
+  // Review Detail Modal State
+  const [viewReviewModal, setViewReviewModal] = useState<{ show: boolean; review: any | null }>({ show: false, review: null });
+
+  // Product Detail Modal State
+  const [viewProductModal, setViewProductModal] = useState<{ show: boolean; product: any | null }>({ show: false, product: null });
+
+  // Hover state for rows
+  const [hoveredRow, setHoveredRow] = useState<string | null>(null);
 
   const {
     pendingProducts, pendingReviews, stats, loading,
@@ -50,6 +83,14 @@ export default function AdminPage() {
 
   const handleRejectReview = (id: string, name: string) => {
     setConfirmModal({ show: true, type: 'review', action: 'reject', id, name });
+  };
+
+  const handleOpenReviewDetail = (review: any) => {
+    setViewReviewModal({ show: true, review });
+  };
+
+  const handleOpenProductDetail = (product: any) => {
+    setViewProductModal({ show: true, product });
   };
 
   const executeConfirmedAction = async () => {
@@ -262,8 +303,14 @@ export default function AdminPage() {
                   {pendingProducts.map((p, idx) => (
                     <tr
                       key={p._id}
+                      onMouseEnter={() => setHoveredRow(p._id)}
+                      onMouseLeave={() => setHoveredRow(null)}
+                      onClick={() => handleOpenProductDetail(p)}
                       style={{
                         borderBottom: idx < pendingProducts.length - 1 ? '1px solid #f9fafb' : 'none',
+                        backgroundColor: hoveredRow === p._id ? '#f9fafb' : 'transparent',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s',
                       }}
                     >
                       <td style={{ padding: '14px 18px' }}>
@@ -272,7 +319,7 @@ export default function AdminPage() {
                             src={p.image}
                             alt={p.name}
                             style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: '8px' }}
-                            onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=Invalid+Image+Link')}
+                            onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available')}
                           />
                         ) : (
                           <div style={{ width: 48, height: 48, backgroundColor: '#f3f4f6', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -290,12 +337,12 @@ export default function AdminPage() {
                         ₱{(p.prices?.[0]?.price || 0).toFixed(2)}
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280' }}>
-                        {p.submittedBy}
+                        Anonymous User
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280' }}>
-                        {p.submittedDate}
+                        {formatShortDate(p.submittedDate)}
                       </td>
-                      <td style={{ padding: '14px 18px' }}>
+                      <td style={{ padding: '14px 18px' }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
                             onClick={() => handleApproveProduct(p._id)}
@@ -352,9 +399,17 @@ export default function AdminPage() {
                   {pendingReviews.map((r, idx) => (
                     <tr
                       key={r._id}
-                      style={{ borderBottom: idx < pendingReviews.length - 1 ? '1px solid #f9fafb' : 'none' }}
+                      onMouseEnter={() => setHoveredRow(r._id)}
+                      onMouseLeave={() => setHoveredRow(null)}
+                      onClick={() => handleOpenReviewDetail(r)}
+                      style={{
+                        borderBottom: idx < pendingReviews.length - 1 ? '1px solid #f9fafb' : 'none',
+                        backgroundColor: hoveredRow === r._id ? '#f9fafb' : 'transparent',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s',
+                      }}
                     >
-                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 500, color: '#111827' }}>{r.userName}</td>
+                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 500, color: '#111827' }}>Anonymous User</td>
                       <td style={{ padding: '14px 18px' }}>
                         <div style={{ display: 'flex', gap: '2px' }}>
                           {[1, 2, 3, 4, 5].map(s => (
@@ -365,24 +420,31 @@ export default function AdminPage() {
                           ))}
                         </div>
                       </td>
-                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280', maxWidth: '320px' }}>
-                        <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: r.images?.length ? '8px' : '0' }}>
-                          {r.text}
-                        </span>
-                        {r.images && r.images.length > 0 && (
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            {r.images.map((img, i) => (
-                              <img
-                                key={i} src={img} alt="Preview"
-                                style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover', border: '1px solid #e5e7eb' }}
-                                onError={(e) => e.currentTarget.src = 'https://placehold.co/40x40?text=Err'}
-                              />
-                            ))}
-                          </div>
-                        )}
+                      <td
+                        style={{
+                          padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280',
+                          maxWidth: '320px',
+                        }}
+                      >
+                        <div style={{ transition: 'opacity 0.2s' }}>
+                          <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: r.images?.length ? '8px' : '0' }}>
+                            {r.text}
+                          </span>
+                          {r.images && r.images.length > 0 && (
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              {r.images.map((img, i) => (
+                                <img
+                                  key={i} src={img} alt="Preview"
+                                  style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover', border: '1px solid #e5e7eb' }}
+                                  onError={(e) => e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available'}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </td>
-                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280' }}>{r.date}</td>
-                      <td style={{ padding: '14px 18px' }}>
+                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280' }}>{formatShortDate(r.date)}</td>
+                      <td style={{ padding: '14px 18px' }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
                             onClick={() => handleApproveReview(r._id)}
@@ -466,6 +528,210 @@ export default function AdminPage() {
                   flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600,
                   color: '#fff', backgroundColor: '#dc2626', border: 'none',
                   borderRadius: '10px', cursor: 'pointer',
+                }}
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Review Content Detail Modal ── */}
+      {viewReviewModal.show && viewReviewModal.review && (
+        <>
+          <div
+            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', zIndex: 1100 }}
+            onClick={() => setViewReviewModal({ show: false, review: null })}
+          />
+          <div
+            style={{
+              position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+              backgroundColor: '#fff', borderRadius: '20px', padding: '0',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', zIndex: 1101,
+              width: '90%', maxWidth: '600px', maxHeight: '85vh',
+              display: 'flex', flexDirection: 'column', overflow: 'hidden'
+            }}
+          >
+            {/* Header */}
+            <div style={{ padding: '24px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Review Details</h3>
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>Submitted on {formatFullDateTime(viewReviewModal.review.date)}</p>
+              </div>
+              <button
+                onClick={() => setViewReviewModal({ show: false, review: null })}
+                style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}
+              >
+                <X style={{ width: 20, height: 20 }} />
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                <div style={{ width: 44, height: 44, borderRadius: '50%', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <User style={{ width: 22, height: 22, color: '#9ca3af' }} />
+                </div>
+                <div>
+                  <p style={{ fontWeight: 700, fontSize: '1rem', color: '#111827', margin: '0 0 2px' }}>Anonymous User</p>
+                  <div style={{ display: 'flex', gap: '2px' }}>
+                    {[1, 2, 3, 4, 5].map(s => (
+                      <Star
+                        key={s}
+                        style={{ width: 16, height: 16, fill: s <= viewReviewModal.review.rating ? '#facc15' : '#e5e7eb', color: s <= viewReviewModal.review.rating ? '#facc15' : '#e5e7eb' }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ backgroundColor: '#f9fafb', padding: '16px', borderRadius: '12px', border: '1px solid #f3f4f6', marginBottom: '24px' }}>
+                <p style={{ fontSize: '1rem', color: '#374151', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                  {viewReviewModal.review.text}
+                </p>
+              </div>
+
+              {viewReviewModal.review.images && viewReviewModal.review.images.length > 0 && (
+                <div>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '12px' }}>Attached Photos</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {viewReviewModal.review.images.map((img: string, i: number) => (
+                      <img
+                        key={i} src={img} alt="Full view"
+                        style={{ width: '100%', borderRadius: '12px', border: '1px solid #e5e7eb', maxHeight: '400px', objectFit: 'contain', backgroundColor: '#fafafa' }}
+                        onError={(e) => e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available'}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Actions Footer */}
+            <div style={{ padding: '24px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: '12px', justifyContent: 'flex-end', backgroundColor: '#fafafa' }}>
+              <button
+                onClick={() => {
+                  handleApproveReview(viewReviewModal.review._id);
+                  setViewReviewModal({ show: false, review: null });
+                }}
+                style={{
+                  padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
+                  color: '#fff', backgroundColor: '#16a34a',
+                  border: 'none', borderRadius: '10px', cursor: 'pointer',
+                  minWidth: '120px'
+                }}
+              >
+                Approve
+              </button>
+              <button
+                onClick={() => {
+                  handleRejectReview(viewReviewModal.review._id, viewReviewModal.review.userName);
+                  setViewReviewModal({ show: false, review: null });
+                }}
+                style={{
+                  padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
+                  color: '#dc2626', backgroundColor: '#fff',
+                  border: '1.5px solid #dc2626', borderRadius: '10px', cursor: 'pointer',
+                  minWidth: '120px'
+                }}
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Product Content Detail Modal ── */}
+      {viewProductModal.show && viewProductModal.product && (
+        <>
+          <div
+            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', zIndex: 1100 }}
+            onClick={() => setViewProductModal({ show: false, product: null })}
+          />
+          <div
+            style={{
+              position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+              backgroundColor: '#fff', borderRadius: '20px', padding: '0',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', zIndex: 1101,
+              width: '90%', maxWidth: '600px', maxHeight: '85vh',
+              display: 'flex', flexDirection: 'column', overflow: 'hidden'
+            }}
+          >
+            {/* Header */}
+            <div style={{ padding: '24px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Product Details</h3>
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>Submitted on {formatFullDateTime(viewProductModal.product.submittedDate)}</p>
+              </div>
+              <button
+                onClick={() => setViewProductModal({ show: false, product: null })}
+                style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}
+              >
+                <X style={{ width: 20, height: 20 }} />
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+              <div style={{ backgroundColor: '#f9fafb', padding: '24px', borderRadius: '16px', border: '1px solid #f3f4f6', marginBottom: '24px' }}>
+                <h4 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#111827', margin: '0 0 16px' }}>{viewProductModal.product.name}</h4>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  <div>
+                    <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Store Location</p>
+                    <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0d9488', margin: 0 }}>{viewProductModal.product.prices?.[0]?.storeName}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Current Price</p>
+                    <p style={{ fontSize: '1.1rem', fontWeight: 800, color: '#8B1538', margin: 0 }}>₱{(viewProductModal.product.prices?.[0]?.price || 0).toFixed(2)}</p>
+                  </div>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <div style={{ height: '1px', backgroundColor: '#f3f4f6', margin: '4px 0 16px' }} />
+                    <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Submitted By</p>
+                    <p style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111827', margin: 0 }}>Anonymous User</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '12px', marginLeft: '4px' }}>Image</p>
+                <img
+                  src={viewProductModal.product.image || 'https://placehold.co/400x400?text=No+Image'}
+                  alt="Product Full"
+                  style={{ width: '100%', borderRadius: '16px', border: '1px solid #e5e7eb', maxHeight: '400px', objectFit: 'contain', backgroundColor: '#fafafa' }}
+                  onError={(e) => e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available'}
+                />
+              </div>
+            </div>
+
+            {/* Actions Footer */}
+            <div style={{ padding: '24px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: '12px', justifyContent: 'flex-end', backgroundColor: '#fafafa' }}>
+              <button
+                onClick={() => {
+                  handleApproveProduct(viewProductModal.product._id);
+                  setViewProductModal({ show: false, product: null });
+                }}
+                style={{
+                  padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
+                  color: '#fff', backgroundColor: '#16a34a',
+                  border: 'none', borderRadius: '10px', cursor: 'pointer',
+                  minWidth: '120px'
+                }}
+              >
+                Approve
+              </button>
+              <button
+                onClick={() => {
+                  handleRejectProduct(viewProductModal.product._id, viewProductModal.product.name);
+                  setViewProductModal({ show: false, product: null });
+                }}
+                style={{
+                  padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
+                  color: '#dc2626', backgroundColor: '#fff',
+                  border: '1.5px solid #dc2626', borderRadius: '10px', cursor: 'pointer',
+                  minWidth: '120px'
                 }}
               >
                 Reject

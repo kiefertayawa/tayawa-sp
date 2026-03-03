@@ -77,9 +77,7 @@ export default function SubmitProductForm({ isOpen, onClose }: SubmitProductForm
       const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const dateStr = now.toLocaleDateString();
 
-      toast.success('Product submitted for review!', {
-        description: `Last added: ${dateStr} ${timeStr}`,
-      });
+      toast.success('Product submitted for review!', {});
 
       onClose();
       setForm({ productName: '', storeId: '', price: '', imageUrl: '' });
