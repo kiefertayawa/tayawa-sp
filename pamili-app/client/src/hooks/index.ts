@@ -25,16 +25,19 @@ export function useStores() {
   // Fetch on mount
   useEffect(() => { fetchStores(); }, [fetchStores]);
 
-  // Refetch when the browser tab regains focus (e.g. user added a store
-  // in the admin tab and switched back) so the map updates immediately.
+  // Sync: Refetch on focus, visibility change, or background timer
   useEffect(() => {
     const onFocus = () => fetchStores();
-    const onVisible = () => { if (document.visibilityState === 'visible') fetchStores(); };
     window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onVisible);
+    document.addEventListener('visibilitychange', onFocus);
+
+    // Background polling (every 30s)
+    const timer = setInterval(fetchStores, 30000);
+
     return () => {
       window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVisible);
+      document.removeEventListener('visibilitychange', onFocus);
+      clearInterval(timer);
     };
   }, [fetchStores]);
 
@@ -45,7 +48,7 @@ export function useStore(id: string | undefined) {
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+  const fetchStore = useCallback(() => {
     if (!id) return;
     setLoading(true);
     storeService.getById(id)
@@ -53,7 +56,23 @@ export function useStore(id: string | undefined) {
       .finally(() => setLoading(false));
   }, [id]);
 
-  return { store, loading };
+  useEffect(() => { fetchStore(); }, [fetchStore]);
+
+  useEffect(() => {
+    const onFocus = () => fetchStore();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+
+    const timer = setInterval(fetchStore, 30000);
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+      clearInterval(timer);
+    };
+  }, [fetchStore]);
+
+  return { store, loading, refetch: fetchStore };
 }
 
 // ─── Products ─────────────────────────────────────────────
@@ -76,14 +95,31 @@ export function useProductSearch() {
     }
   }, []);
 
-  return { results, loading, query, search };
+  const refetch = useCallback(() => {
+    if (query) search(query);
+  }, [query, search]);
+
+  useEffect(() => {
+    if (!query) return;
+    const onFocus = () => refetch();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+    const timer = setInterval(refetch, 20000);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+      clearInterval(timer);
+    };
+  }, [query, refetch]);
+
+  return { results, loading, query, search, refetch };
 }
 
 export function useStoreProducts(storeId: string | undefined) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+  const fetchProducts = useCallback(() => {
     if (!storeId) return;
     setLoading(true);
     storeService.getProducts(storeId)
@@ -91,7 +127,23 @@ export function useStoreProducts(storeId: string | undefined) {
       .finally(() => setLoading(false));
   }, [storeId]);
 
-  return { products, loading };
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+
+  useEffect(() => {
+    const onFocus = () => fetchProducts();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+
+    const timer = setInterval(fetchProducts, 30000);
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+      clearInterval(timer);
+    };
+  }, [fetchProducts]);
+
+  return { products, loading, refetch: fetchProducts };
 }
 
 // ─── Reviews ──────────────────────────────────────────────
@@ -99,7 +151,7 @@ export function useReviews(storeId: string | undefined) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const load = useCallback(() => {
+  const fetchReviews = useCallback(() => {
     if (!storeId) return;
     setLoading(true);
     reviewService.getByStore(storeId)
@@ -107,22 +159,33 @@ export function useReviews(storeId: string | undefined) {
       .finally(() => setLoading(false));
   }, [storeId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { fetchReviews(); }, [fetchReviews]);
+
+  useEffect(() => {
+    const onFocus = () => fetchReviews();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+
+    const timer = setInterval(fetchReviews, 20000); // Reviews might need more frequent sync
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+      clearInterval(timer);
+    };
+  }, [fetchReviews]);
 
   const submitReview = async (data: { rating: number; text: string; images?: string[] }) => {
     if (!storeId) return false;
     try {
       await reviewService.submit({ storeId, ...data });
-      // We don't refresh immediately because the review will be 'pending'
-      // and won't show up in the public list yet.
-      // load(); 
       return true;
     } catch {
       return false;
     }
   };
 
-  return { reviews, loading, submitReview };
+  return { reviews, loading, submitReview, refetch: fetchReviews };
 }
 
 // ─── Admin ────────────────────────────────────────────────
@@ -168,8 +231,6 @@ export function usePendingItems() {
     } catch { }
   };
 
-  useEffect(() => { load(); }, [load]);
-
   const approveProduct = async (id: string) => {
     try {
       await adminService.approveProduct(id);
@@ -209,11 +270,10 @@ export function usePendingItems() {
   const addStore = async (data: { name: string; address: string; lat: number; lng: number; image: string; peakHours?: string[]; offPeakHours?: string[] }) => {
     try {
       await adminService.addStore(data);
-      await load(); // reload stores + stats so maps update immediately
+      await load();
       return true;
     } catch { return false; }
   };
-
 
   const deleteStoreHook = async (id: string) => {
     try {
@@ -223,6 +283,21 @@ export function usePendingItems() {
       return true;
     } catch { return false; }
   };
+
+  useEffect(() => {
+    const onFocus = () => load();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+
+    // Admin data needs aggressive polling
+    const timer = setInterval(load, 10000);
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+      clearInterval(timer);
+    };
+  }, [load]);
 
   return {
     pendingProducts,
@@ -236,6 +311,6 @@ export function usePendingItems() {
     rejectReview,
     addStore,
     deleteStore: deleteStoreHook,
-    refresh: load
+    refetch: load
   };
 }
