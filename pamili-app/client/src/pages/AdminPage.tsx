@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { Star, Package, LogIn, Eye, EyeOff, CheckCircle, X, User, Plus } from 'lucide-react';
+import { Star, Package, LogIn, Eye, EyeOff, CheckCircle, X, User, Plus, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { usePendingItems } from '../hooks';
 import { useAuth } from '../context/AuthContext';
 
@@ -955,6 +958,7 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
           </button>
         </div>
         <form onSubmit={handleSubmit} noValidate style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+          {/* Image */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
               Image URL <span style={{ color: '#8B1538' }}>*</span>
@@ -969,7 +973,6 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
               style={inputStyle('image')}
             />
             {fieldErrors.image && <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>This field is required!</p>}
-
             <div style={{ marginTop: '12px', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden', height: '140px', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <img
                 src={form.image.trim() || 'https://placehold.co/400x400?text=No+Image+Available'}
@@ -980,6 +983,7 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
             </div>
           </div>
 
+          {/* Store Name */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
               Store Name <span style={{ color: '#8B1538' }}>*</span>
@@ -996,6 +1000,7 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
             {fieldErrors.name && <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>This field is required!</p>}
           </div>
 
+          {/* Address */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
               Address <span style={{ color: '#8B1538' }}>*</span>
@@ -1012,39 +1017,46 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
             {fieldErrors.address && <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>This field is required!</p>}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
-                Latitude <span style={{ color: '#8B1538' }}>*</span>
-              </label>
-              <input
-                type="number" step="any" value={form.lat}
-                onChange={e => {
-                  setForm({ ...form, lat: e.target.value });
-                  if (e.target.value) setFieldErrors(prev => ({ ...prev, lat: false }));
+          {/* Map Picker */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+              Location Pin <span style={{ color: '#8B1538' }}>*</span>
+            </label>
+            <p style={{ fontSize: '0.78rem', color: '#6b7280', margin: '0 0 8px' }}>
+              Click anywhere on the map to drop a pin for this store.
+            </p>
+            <div style={{ borderRadius: '12px', overflow: 'hidden', border: `1.5px solid ${fieldErrors.lat ? '#dc2626' : '#e5e7eb'}`, height: '240px', position: 'relative' }}>
+              <LocationPicker
+                lat={form.lat ? parseFloat(form.lat) : null}
+                lng={form.lng ? parseFloat(form.lng) : null}
+                onPick={(lat: number, lng: number) => {
+                  setForm(f => ({ ...f, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
+                  setFieldErrors(prev => ({ ...prev, lat: false, lng: false }));
                 }}
-                placeholder="14.XXX"
-                style={inputStyle('lat')}
               />
-              {fieldErrors.lat && <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>This field is required!</p>}
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
-                Longitude <span style={{ color: '#8B1538' }}>*</span>
-              </label>
-              <input
-                type="number" step="any" value={form.lng}
-                onChange={e => {
-                  setForm({ ...form, lng: e.target.value });
-                  if (e.target.value) setFieldErrors(prev => ({ ...prev, lng: false }));
-                }}
-                placeholder="121.XXX"
-                style={inputStyle('lng')}
-              />
-              {fieldErrors.lng && <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>This field is required!</p>}
-            </div>
+            {form.lat && form.lng && (
+              <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.78rem', color: '#6b7280', backgroundColor: '#f3f4f6', borderRadius: '6px', padding: '4px 10px' }}>
+                  <MapPin style={{ width: 11, height: 11, display: 'inline', marginRight: 4 }} />
+                  Lat: {parseFloat(form.lat).toFixed(6)}
+                </span>
+                <span style={{ fontSize: '0.78rem', color: '#6b7280', backgroundColor: '#f3f4f6', borderRadius: '6px', padding: '4px 10px' }}>
+                  Lng: {parseFloat(form.lng).toFixed(6)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, lat: '', lng: '' }))}
+                  style={{ fontSize: '0.75rem', color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px' }}
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+            {fieldErrors.lat && <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>Please click the map to pick a location!</p>}
           </div>
 
+          {/* Peak / Off-Peak Hours */}
           <div style={{ marginBottom: '24px' }}>
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>Peak Hours (comma separated)</label>
             <input
@@ -1065,7 +1077,8 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
             />
           </div>
 
-          <div style={{ margin: '0 -24px', padding: '4px 24px', display: 'flex', gap: '12px' }}>
+          {/* Buttons */}
+          <div style={{ display: 'flex', gap: '12px' }}>
             <button
               type="button" onClick={onClose}
               style={{ flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600, color: '#374151', backgroundColor: '#fff', border: '1.5px solid #e5e7eb', borderRadius: '10px', cursor: 'pointer' }}
@@ -1084,3 +1097,49 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
     </>
   );
 }
+
+
+// ── Map location picker ───────────────────────────────────────────────────
+// A small Leaflet map centred on Batong Malake. Clicking anywhere drops a
+// marker and fires onPick(lat, lng) so the form captures exact coordinates.
+const BATONG_MALAKE: [number, number] = [14.1664, 121.2417];
+
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+function ClickHandler({ onPick }: { onPick: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click(e) { onPick(e.latlng.lat, e.latlng.lng); },
+  });
+  return null;
+}
+
+function LocationPicker({
+  lat, lng, onPick,
+}: {
+  lat: number | null;
+  lng: number | null;
+  onPick: (lat: number, lng: number) => void;
+}) {
+  return (
+    <MapContainer
+      center={lat != null && lng != null ? [lat, lng] : BATONG_MALAKE}
+      zoom={16}
+      style={{ width: '100%', height: '100%', cursor: 'crosshair' }}
+      scrollWheelZoom
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+        maxZoom={19}
+      />
+      <ClickHandler onPick={onPick} />
+      {lat != null && lng != null && <Marker position={[lat, lng]} />}
+    </MapContainer>
+  );
+}
+

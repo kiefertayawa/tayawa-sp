@@ -92,6 +92,14 @@ export const productService = {
     }
     return api.post<ApiResponse<Product>>('/products/submit', data);
   },
+  getSuggestions: (query: string) => {
+    if (USE_MOCK) {
+      const q = query.toLowerCase();
+      const names = [...new Set(MOCK_PRODUCTS.filter(p => p.name.toLowerCase().includes(q)).map(p => p.name))].slice(0, 8);
+      return mockResponse(names);
+    }
+    return api.get<ApiResponse<string[]>>(`/products/suggestions?q=${encodeURIComponent(query)}`);
+  },
 };
 
 // ─── Stores ───────────────────────────────────────────────────

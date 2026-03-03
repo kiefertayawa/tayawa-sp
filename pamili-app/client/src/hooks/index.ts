@@ -14,7 +14,7 @@ export function useStores() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchStores = useCallback(() => {
     setLoading(true);
     storeService.getAll()
       .then((res) => setStores(res.data.data))
@@ -22,7 +22,23 @@ export function useStores() {
       .finally(() => setLoading(false));
   }, []);
 
-  return { stores, loading, error };
+  // Fetch on mount
+  useEffect(() => { fetchStores(); }, [fetchStores]);
+
+  // Refetch when the browser tab regains focus (e.g. user added a store
+  // in the admin tab and switched back) so the map updates immediately.
+  useEffect(() => {
+    const onFocus = () => fetchStores();
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchStores(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [fetchStores]);
+
+  return { stores, loading, error, refetch: fetchStores };
 }
 
 export function useStore(id: string | undefined) {
@@ -193,7 +209,7 @@ export function usePendingItems() {
   const addStore = async (data: { name: string; address: string; lat: number; lng: number; image: string; peakHours?: string[]; offPeakHours?: string[] }) => {
     try {
       await adminService.addStore(data);
-      refreshStats();
+      await load(); // reload stores + stats so maps update immediately
       return true;
     } catch { return false; }
   };

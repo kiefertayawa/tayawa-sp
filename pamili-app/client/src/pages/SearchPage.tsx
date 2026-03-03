@@ -59,7 +59,7 @@ export default function SearchPage() {
   const navigate = useNavigate();
 
   const { results, loading, search } = useProductSearch();
-  const { stores: allStores } = useStores();
+  const { stores: allStores, loading: storesLoading } = useStores();
   const { addItem } = useCart();
 
   const [filters, setFilters] = useState<Filters>(DEFAULT);
@@ -70,7 +70,10 @@ export default function SearchPage() {
   const storeCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const resultsScrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { if (query) search(query); }, [query]); // eslint-disable-line
+  // Trigger search whenever query changes (also fires on initial mount)
+  useEffect(() => {
+    if (query.trim()) search(query);
+  }, [query, search]);
 
   // close filter panel on outside click
   useEffect(() => {
@@ -93,8 +96,11 @@ export default function SearchPage() {
     setTimeout(() => setHighlightedStoreId(prev => prev === storeId ? null : prev), 2000);
   }, []);
 
-  // build store lookup
+  // Build store lookup — recomputed whenever allStores updates.
+  // This ensures map pins appear even when stores finish loading AFTER product results.
   const storeMap = new Map(allStores.map(s => [s._id, s]));
+
+  const isPageLoading = loading || storesLoading;
 
   // group products by store
   type Group = { storeId: string; storeName: string; storeData?: StoreType; products: { product: Product; price: number; inStock: boolean }[] };
@@ -349,7 +355,7 @@ export default function SearchPage() {
 
             {/* ── ONLY THIS SCROLLS ── */}
             <div ref={resultsScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '16px 22px 24px' }}>
-              {loading ? (
+              {isPageLoading ? (
                 [...Array(3)].map((_, i) => (
                   <div key={i} style={{ height: 190, backgroundColor: '#f3f4f6', borderRadius: 14, marginBottom: 16, animation: 'pulse 1.5s ease-in-out infinite' }} />
                 ))

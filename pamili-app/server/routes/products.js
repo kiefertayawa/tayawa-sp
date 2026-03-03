@@ -14,6 +14,24 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/products/suggestions?q=... — autocomplete: returns matching product names only
+router.get('/suggestions', async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    if (!q) return res.json({ success: true, data: [] });
+
+    const products = await Product.find(
+      { name: { $regex: q, $options: 'i' }, status: 'approved' },
+      { name: 1 }   // projection: only the name field
+    ).limit(8).sort({ name: 1 });
+
+    const names = [...new Set(products.map(p => p.name))];
+    res.json({ success: true, data: names });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/products/search?q=rice — search by name
 router.get('/search', async (req, res) => {
   try {
