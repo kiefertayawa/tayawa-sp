@@ -5,9 +5,10 @@ import { useReviews } from '../../../hooks';
 interface ReviewsSectionProps {
   storeId: string;
   storeName: string;
+  helpText?: string;
 }
 
-export default function ReviewsSection({ storeId, storeName: _storeName }: ReviewsSectionProps) {
+export default function ReviewsSection({ storeId, storeName: _storeName, helpText }: ReviewsSectionProps) {
   const { reviews, loading, submitReview } = useReviews(storeId);
   const [showForm, setShowForm] = useState(false);
   const [rating, setRating] = useState(0);
@@ -57,7 +58,7 @@ export default function ReviewsSection({ storeId, storeName: _storeName }: Revie
         }}
       >
         {/* Header row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <h2 style={{ fontWeight: 700, fontSize: '1rem', color: '#111827', margin: 0 }}>Reviews &amp; Ratings</h2>
           <button
             onClick={() => setShowForm(prev => !prev)}
@@ -73,6 +74,13 @@ export default function ReviewsSection({ storeId, storeName: _storeName }: Revie
             Write a Review
           </button>
         </div>
+
+        {/* Optional help text below the header */}
+        {helpText && (
+          <p style={{ fontSize: '0.85rem', color: '#9ca3af', margin: '-16px 0 20px' }}>
+            {helpText}
+          </p>
+        )}
 
         {/* Rating summary */}
         {reviews.length > 0 && (

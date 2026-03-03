@@ -18,7 +18,19 @@ export default function HomePage() {
     <div style={{ backgroundColor: '#f5f6fa', minHeight: '100vh' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
 
-        {/* Google Map */}
+        {/* Heading */}
+        <div style={{ marginBottom: '16px' }}>
+          <h2 style={{ fontWeight: 700, fontSize: '1.55rem', color: '#8B1538', margin: '0 0 5px' }}>
+            Stores in Batong Malake
+          </h2>
+          <p style={{ fontSize: '1rem', color: '#6b7280', margin: 0 }}>
+            Compare prices and{' '}
+            <span style={{ color: '#0d9488', fontWeight: 500 }}>find the best deals</span>
+            {' '}near you!
+          </p>
+        </div>
+
+        {/* Map — fully rounded card, crowd legend floats inside */}
         <div
           style={{
             marginBottom: '32px',
@@ -26,10 +38,45 @@ export default function HomePage() {
             overflow: 'hidden',
             border: '1px solid #e5e7eb',
             height: '560px',
+            position: 'relative', // needed for the absolute overlay
           }}
         >
           <HomeMap stores={stores} height="560px" />
+
+          {/* Crowd level legend — floating inside map, bottom-left */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '12px',
+              left: '12px',
+              zIndex: 5,
+              backgroundColor: 'rgba(255,255,255,0.95)',
+              backdropFilter: 'blur(4px)',
+              padding: '6px 14px',
+              borderRadius: '8px',
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '12px',
+              fontSize: '0.78rem',
+              color: '#374151',
+            }}
+          >
+            <span style={{ fontWeight: 700 }}>Crowd Level:</span>
+            {[
+              { l: 'Low', c: '#16a34a' },
+              { l: 'Moderate', c: '#d97706' },
+              { l: 'Busy', c: '#dc2626' },
+            ].map(({ l, c }) => (
+              <div key={l} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: c }} />
+                <span>{l}</span>
+              </div>
+            ))}
+          </div>
         </div>
+
 
         {/* Store grid */}
         {loading ? (

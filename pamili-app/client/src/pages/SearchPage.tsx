@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, MapPin, Star, Users, ShoppingCart, Store,
-  TrendingDown, SlidersHorizontal, ChevronDown, X, Clock,
+  TrendingDown, SlidersHorizontal, ChevronDown, X,
 } from 'lucide-react';
 import { useProductSearch, useStores } from '../hooks';
 import { useCart } from '../context/CartContext';
@@ -124,7 +124,7 @@ export default function SearchPage() {
 
   const totalProducts = results.length;
   const storeCount = groups.length;
-  const activeCnt = filters.crowdLevels.size + (filters.openNow ? 1 : 0);
+  const activeCnt = filters.crowdLevels.size;
 
   const toggleCrowd = (lvl: 'low' | 'medium' | 'high') =>
     setFilters(prev => { const s = new Set(prev.crowdLevels); s.has(lvl) ? s.delete(lvl) : s.add(lvl); return { ...prev, crowdLevels: s }; });
@@ -327,9 +327,6 @@ export default function SearchPage() {
                   {Array.from(filters.crowdLevels).map(lvl => (
                     <Chip key={lvl} label={crowdCfg[lvl].label} color={crowdCfg[lvl].color} bg={crowdCfg[lvl].bg} onRemove={() => toggleCrowd(lvl)} />
                   ))}
-                  {filters.openNow && (
-                    <Chip label="Open Now" color="#2563eb" bg="#eff6ff" onRemove={() => setFilters(p => ({ ...p, openNow: false }))} />
-                  )}
                 </div>
               )}
 
@@ -407,37 +404,32 @@ export default function SearchPage() {
                           const isLowest = price === lowestPrice[product._id] && product.prices.length > 1;
                           const diff = price - lowestPrice[product._id];
                           return (
-                            <div key={`${storeId}-${product._id}`} style={{ display: 'flex', alignItems: 'center', gap: '18px', padding: '18px 20px', borderTop: '1px solid #f9fafb' }}>
-                              <img src={product.image} alt={product.name} style={{ width: 88, height: 88, objectFit: 'cover', borderRadius: '12px', flexShrink: 0 }} />
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <p style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', marginBottom: '6px' }}>{product.name}</p>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '7px' }}>
-                                  <span style={{ fontSize: '0.73rem', color: '#374151', border: '1px solid #d1d5db', borderRadius: '4px', padding: '2px 9px' }}>{product.category}</span>
-                                  {isLowest && (
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.73rem', fontWeight: 700, color: '#fff', backgroundColor: '#16a34a', borderRadius: '999px', padding: '2px 9px' }}>
-                                      <TrendingDown style={{ width: 10, height: 10 }} /> Lowest Price
-                                    </span>
-                                  )}
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <Star style={{ width: 12, height: 12, fill: '#facc15', color: '#facc15' }} />
-                                  <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>{product.rating}</span>
-                                  <span style={{ fontSize: '0.73rem', fontWeight: 600, color: inStock ? '#16a34a' : '#9ca3af', backgroundColor: inStock ? '#f0fdf4' : '#f3f4f6', borderRadius: '4px', padding: '2px 8px' }}>
-                                    {inStock ? 'In Stock' : 'Out of Stock'}
+                            <div key={`${storeId}-${product._id}`} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '12px 20px', borderTop: '1px solid #f9fafb' }}>
+                              {/* Image */}
+                              <img src={product.image} alt={product.name} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: '10px', flexShrink: 0 }} />
+
+                              {/* Middle: name + badge grouped together, centered */}
+                              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                <p style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', margin: 0 }}>{product.name}</p>
+                                {isLowest && (
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.72rem', fontWeight: 700, color: '#fff', backgroundColor: '#16a34a', borderRadius: '999px', padding: '2px 9px', width: 'fit-content' }}>
+                                    <TrendingDown style={{ width: 10, height: 10 }} /> Lowest Price
                                   </span>
-                                </div>
+                                )}
                               </div>
+
+                              {/* Right: price + buttons */}
                               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                <p style={{ fontSize: '1.2rem', fontWeight: 800, color: '#8B1538', margin: '0 0 2px' }}>₱{price.toFixed(2)}</p>
+                                <p style={{ fontSize: '1.1rem', fontWeight: 800, color: '#8B1538', margin: '0 0 2px' }}>₱{price.toFixed(2)}</p>
                                 {!isLowest && diff > 0 && <p style={{ fontSize: '0.74rem', color: '#ef4444', margin: '0 0 6px' }}>+₱{diff.toFixed(2)}</p>}
-                                <div style={{ display: 'flex', gap: '7px', justifyContent: 'flex-end', marginTop: '8px' }}>
-                                  <button onClick={() => navigate(`/store/${storeId}`)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '7px 12px', fontSize: '0.78rem', border: '1px solid #e5e7eb', borderRadius: '7px', backgroundColor: '#fff', color: '#374151', cursor: 'pointer' }}>
+                                <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', marginTop: '6px' }}>
+                                  <button onClick={() => navigate(`/store/${storeId}`)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 11px', fontSize: '0.78rem', border: '1px solid #e5e7eb', borderRadius: '7px', backgroundColor: '#fff', color: '#374151', cursor: 'pointer' }}>
                                     <Store style={{ width: 12, height: 12 }} /> View Store
                                   </button>
                                   <button
                                     disabled={!inStock}
                                     onClick={() => inStock && addItem({ productId: product._id, productName: product.name, storeId, storeName, price, image: product.image })}
-                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '7px 12px', fontSize: '0.78rem', fontWeight: 700, border: 'none', borderRadius: '7px', backgroundColor: inStock ? '#8B1538' : '#e5e7eb', color: inStock ? '#fff' : '#9ca3af', cursor: inStock ? 'pointer' : 'not-allowed' }}
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 11px', fontSize: '0.78rem', fontWeight: 700, border: 'none', borderRadius: '7px', backgroundColor: inStock ? '#8B1538' : '#e5e7eb', color: inStock ? '#fff' : '#9ca3af', cursor: inStock ? 'pointer' : 'not-allowed' }}
                                   >
                                     <ShoppingCart style={{ width: 12, height: 12 }} /> Add
                                   </button>
@@ -445,6 +437,8 @@ export default function SearchPage() {
                               </div>
                             </div>
                           );
+
+
                         })}
                       </div>
                     );
@@ -505,15 +499,6 @@ function FiltersPanel({ filters, setFilters, toggleCrowd, onApply }: {
         </FilterRow>
       ))}
 
-      <FilterRow style={{ justifyContent: 'space-between', padding: '12px 0 8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Clock style={{ width: 14, height: 14, color: '#6b7280' }} />
-          Show only stores open now
-        </div>
-        <div onClick={() => setFilters(p => ({ ...p, openNow: !p.openNow }))} style={{ width: 36, height: 20, borderRadius: 10, backgroundColor: filters.openNow ? '#8B1538' : '#d1d5db', position: 'relative', cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s' }}>
-          <div style={{ position: 'absolute', width: 16, height: 16, borderRadius: '50%', backgroundColor: '#fff', top: 2, left: filters.openNow ? 18 : 2, transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' }} />
-        </div>
-      </FilterRow>
 
       <SectionLabel style={{ marginTop: '14px' }}>Sort By</SectionLabel>
       <FilterRow>

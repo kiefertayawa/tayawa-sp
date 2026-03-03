@@ -49,6 +49,27 @@ textarea {
   z-index: 0;
 }
 
+/* ── Cart slide keyframes ────────────────────────────────── */
+@keyframes cartSlideIn {
+  from {
+    transform: translateX(105%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes cartSlideOut {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(105%);
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════
    PAMILI MAP PINS
    Both pin types use transform-origin: bottom center so the

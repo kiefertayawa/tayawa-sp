@@ -55,13 +55,13 @@ export default function Header({ onCartClick, onSubmitClick }: HeaderProps) {
           <img
             src="/pamili-logo.png"
             alt="PAMILI"
-            style={{ height: '36px', width: 'auto', objectFit: 'contain' }}
+            style={{ height: '48px', width: 'auto', objectFit: 'contain' }}
           />
         </Link>
       </div>
 
-      {/* Col 2 — Search bar (hidden on /admin) */}
-      {!isAdminRoute && !isAdmin ? (
+      {/* Col 2 — Search bar (hidden on /admin login) */}
+      {!isAdminRoute ? (
         <form onSubmit={handleSearch} style={{ width: '560px' }}>
           <div style={{ position: 'relative' }}>
             <Search
@@ -143,7 +143,7 @@ export default function Header({ onCartClick, onSubmitClick }: HeaderProps) {
                 border: '1.5px solid #e5e7eb', borderRadius: '10px', cursor: 'pointer',
               }}
             >
-              <ShoppingCart style={{ width: 17, height: 17 }} /> Cart
+              <ShoppingCart style={{ width: 17, height: 17 }} /> List
               {totalItems > 0 && (
                 <span
                   style={{

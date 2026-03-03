@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { X, Plus, Minus, Trash2, ShoppingBag } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 
@@ -9,7 +10,27 @@ interface ShoppingCartProps {
 export default function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
   const { items, updateQuantity, removeItem, clearCart, subtotal, totalItems } = useCart();
 
-  if (!isOpen) return null;
+  // ── Slide animation state ────────────────────────────────────────────────
+  // `mounted`  — whether the DOM node exists
+  // `closing`  — true during the slide-OUT phase before unmounting
+  const [mounted, setMounted] = useState(false);
+  const [closing, setClosing] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setMounted(true);   // mount it — CSS @keyframes cartSlideIn fires automatically
+      setClosing(false);
+    } else if (mounted) {
+      setClosing(true);   // trigger slide-OUT keyframe
+      const timer = setTimeout(() => {
+        setMounted(false);
+        setClosing(false);
+      }, 320);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]); // eslint-disable-line
+
+  if (!mounted) return null;
 
   const byStore = items.reduce((acc, item) => {
     if (!acc[item.storeName]) acc[item.storeName] = [];
@@ -43,6 +64,10 @@ export default function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
+          // Keyframe animation: slideIn on mount, slideOut when closing
+          animation: closing
+            ? 'cartSlideOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+            : 'cartSlideIn 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards',
         }}
       >
         {/* Panel header */}
@@ -58,7 +83,7 @@ export default function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <ShoppingBag style={{ width: 20, height: 20, color: '#374151' }} />
-            <span style={{ fontWeight: 600, color: '#111827', fontSize: '1rem' }}>Shopping Cart</span>
+            <span style={{ fontWeight: 600, color: '#111827', fontSize: '1rem' }}>Shopping List</span>
             {totalItems > 0 && (
               <span
                 style={{
@@ -87,8 +112,8 @@ export default function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
           {items.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
               <ShoppingBag style={{ width: 56, height: 56, color: '#e5e7eb', marginBottom: '12px' }} />
-              <p style={{ color: '#6b7280', fontWeight: 500 }}>Your cart is empty</p>
-              <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '4px' }}>Add items to start planning your budget</p>
+              <p style={{ color: '#6b7280', fontWeight: 500 }}>Your list is empty!</p>
+              <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '4px' }}>Add items to start planning your budget.</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

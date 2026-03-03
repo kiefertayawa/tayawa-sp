@@ -73,7 +73,7 @@ export default function StorePage() {
           </div>
 
           {/* Rating */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
             <Star style={{ width: 16, height: 16, fill: '#facc15', color: '#facc15' }} />
             <span style={{ fontWeight: 600, color: '#111827', fontSize: '0.95rem' }}>{store.rating}</span>
             <span style={{ color: '#9ca3af', fontSize: '0.875rem' }}>({store.reviewCount} reviews)</span>
@@ -90,7 +90,7 @@ export default function StorePage() {
           </div>
 
           {/* Status + help text */}
-          <div style={{ marginBottom: '6px' }}>
+          <div style={{ marginBottom: '14px' }}>
             <span style={{ fontSize: '0.875rem', color: '#6b7280', marginRight: '8px' }}>Current Status:</span>
             <span
               style={{
@@ -102,9 +102,6 @@ export default function StorePage() {
               {crowd.label}
             </span>
           </div>
-          <p style={{ fontSize: '0.85rem', color: '#9ca3af', marginBottom: '20px' }}>
-            Help the community! Share your shopping experience by leaving a review below.
-          </p>
 
           {/* Peak / Off-peak columns */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -139,7 +136,7 @@ export default function StorePage() {
         </div>
 
         {/* Reviews */}
-        <ReviewsSection storeId={store._id} storeName={store.name} />
+        <ReviewsSection storeId={store._id} storeName={store.name} helpText="Help the community! Share your shopping experience by leaving a review below." />
       </div>
     </div>
   );
