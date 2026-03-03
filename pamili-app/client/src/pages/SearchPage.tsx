@@ -406,7 +406,7 @@ export default function SearchPage() {
                           </div>
                           {storeData?.peakHours?.length ? (
                             <p style={{ fontSize: '0.79rem', color: '#6b7280', margin: 0, fontWeight: 500 }}>
-                              Peak: {storeData.peakHours[0]}
+                              Peak Hours: {storeData.peakHours[0]}
                             </p>
                           ) : null}
                         </div>

@@ -15,13 +15,22 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/products/suggestions?q=... — autocomplete: returns matching product names only
+// This works by using a case-insensitive regular expression ($regex) to find
+// products whose names contain the user's input string.
+// We limit the result to 8 items and return only unique names.
 router.get('/suggestions', async (req, res) => {
   try {
     const q = (req.query.q || '').trim();
     if (!q) return res.json({ success: true, data: [] });
 
+    // We only want to suggest products that are 'approved' and have at
+    // least one price entry (meaning they actually exist in a store).
     const products = await Product.find(
-      { name: { $regex: q, $options: 'i' }, status: 'approved' },
+      {
+        name: { $regex: q, $options: 'i' },
+        status: 'approved',
+        'prices.0': { $exists: true }
+      },
       { name: 1 }   // projection: only the name field
     ).limit(8).sort({ name: 1 });
 
@@ -33,13 +42,16 @@ router.get('/suggestions', async (req, res) => {
 });
 
 // GET /api/products/search?q=rice — search by name
+// Returns full product objects that match the query and are currently in stock.
 router.get('/search', async (req, res) => {
   try {
     const q = req.query.q || '';
     if (!q.trim()) return res.json({ success: true, data: [] });
 
+    const regex = new RegExp(q.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
+
     const products = await Product.find({
-      name: { $regex: q, $options: 'i' },
+      name: regex,
       status: 'approved'
     });
 
