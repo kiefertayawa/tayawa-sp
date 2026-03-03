@@ -119,7 +119,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('pamili_cart', JSON.stringify(state.items));
   }, [state.items]);
 
-  const totalItems = state.items.reduce((sum, i) => i.selected !== false ? sum + i.quantity : sum, 0);
+  const totalItems = state.items.reduce((sum, i) => sum + i.quantity, 0);
   const subtotal = state.items.reduce((sum, i) => i.selected !== false ? sum + (i.price * i.quantity) : sum, 0);
 
   return (

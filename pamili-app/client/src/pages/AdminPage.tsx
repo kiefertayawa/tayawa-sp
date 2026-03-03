@@ -636,7 +636,7 @@ export default function AdminPage() {
               </h3>
               <p style={{ fontSize: '0.9rem', color: '#6b7280', margin: '0 0 24px', lineHeight: 1.5, wordBreak: 'break-word' }}>
                 {confirmModal.type === 'review'
-                  ? "Are you sure you want to delete this review?"
+                  ? "Are you sure you want to reject this review?"
                   : <>Are you sure you want to {confirmModal.action === 'delete' ? 'delete' : 'reject'} the {confirmModal.type} <strong style={{ wordBreak: 'break-all' }}>{confirmModal.name}</strong>?</>
                 }
               </p>

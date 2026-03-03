@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star, Users, ArrowUp } from 'lucide-react';
+import { Star, Users, ArrowUp, SlidersHorizontal, ChevronDown, ChevronUp, RotateCcw, Check } from 'lucide-react';
 import { useStores } from '../hooks';
 import type { Store } from '../types';
 import HomeMap from '../components/maps/HomeMap';
@@ -11,10 +11,22 @@ const crowdConfig = {
   high: { color: '#dc2626', bg: '#fee2e2', label: 'Busy' },
 };
 
+interface Filters {
+  crowdLevels: Set<'low' | 'medium' | 'high'>;
+  sortBy: 'default' | 'rating';
+}
+
+const DEFAULT: Filters = {
+  crowdLevels: new Set(),
+  sortBy: 'default',
+};
+
 export default function HomePage() {
   const navigate = useNavigate();
   const { stores, loading } = useStores();
   const [showScroll, setShowScroll] = useState(false);
+  const [filters, setFilters] = useState<Filters>(DEFAULT);
+  const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -23,6 +35,23 @@ export default function HomePage() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const toggleCrowd = (lvl: 'low' | 'medium' | 'high') => {
+    const next = new Set(filters.crowdLevels);
+    if (next.has(lvl)) next.delete(lvl);
+    else next.add(lvl);
+    setFilters({ ...filters, crowdLevels: next });
+  };
+
+  const filtered = stores
+    .filter(s => filters.crowdLevels.size === 0 || filters.crowdLevels.has(s.crowdLevel))
+    .sort((a, b) => {
+      if (filters.sortBy === 'rating') return b.rating - a.rating;
+      // Default: Alphabetical
+      return a.name.localeCompare(b.name);
+    });
+
+  const activeCnt = (filters.crowdLevels.size) + (filters.sortBy !== 'default' ? 1 : 0);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -91,6 +120,105 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* Filters Panel — on the right, above the grid */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '24px', position: 'relative' }}>
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '8px 16px', borderRadius: '10px',
+              backgroundColor: activeCnt > 0 ? '#fdf2f5' : '#fff',
+              border: `1px solid ${activeCnt > 0 ? '#8B1538' : '#e5e7eb'}`,
+              color: '#374151', fontSize: '0.875rem', fontWeight: 600,
+              cursor: 'pointer', transition: 'all 0.2s',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+            }}
+          >
+            <SlidersHorizontal style={{ width: 16, height: 16, color: activeCnt > 0 ? '#8B1538' : '#6b7280' }} />
+            Filters {activeCnt > 0 && `(${activeCnt})`}
+            {showMenu ? <ChevronUp style={{ width: 14, height: 14 }} /> : <ChevronDown style={{ width: 14, height: 14 }} />}
+          </button>
+
+          {showMenu && (
+            <>
+              <div
+                onClick={() => setShowMenu(false)}
+                style={{ position: 'fixed', inset: 0, zIndex: 100 }}
+              />
+              <div
+                style={{
+                  position: 'absolute', top: '100%', right: 0, marginTop: '8px',
+                  width: '280px', backgroundColor: '#fff', borderRadius: '16px',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05)',
+                  border: '1px solid #e5e7eb', zIndex: 101, padding: '20px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <span style={{ fontWeight: 800, color: '#111827', fontSize: '0.95rem' }}>Filters</span>
+                  <button
+                    onClick={() => { setFilters(DEFAULT); setShowMenu(false); }}
+                    style={{ background: 'none', border: 'none', color: '#8B1538', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <RotateCcw style={{ width: 12, height: 12 }} />
+                    Reset all
+                  </button>
+                </div>
+
+                {/* Crowd Levels */}
+                <div style={{ marginBottom: '20px' }}>
+                  <p style={{ fontSize: '0.75rem', fontWeight: 800, color: '#111827', letterSpacing: '0.05em', marginBottom: '12px', textTransform: 'uppercase' }}>Crowd Level</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {(['low', 'medium', 'high'] as const).map(lvl => (
+                      <div
+                        key={lvl}
+                        onClick={() => toggleCrowd(lvl)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', cursor: 'pointer' }}
+                      >
+                        <div style={{
+                          width: '18px', height: '18px', borderRadius: '4px',
+                          border: `2px solid ${filters.crowdLevels.has(lvl) ? '#8B1538' : '#d1d5db'}`,
+                          backgroundColor: filters.crowdLevels.has(lvl) ? '#8B1538' : 'transparent',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.1s'
+                        }}>
+                          {filters.crowdLevels.has(lvl) && <Check style={{ width: 14, height: 14, color: '#fff' }} />}
+                        </div>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: crowdConfig[lvl].color }} />
+                        <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#4b5563' }}>{crowdConfig[lvl].label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sort By */}
+                <div style={{ marginBottom: '24px' }}>
+                  <p style={{ fontSize: '0.75rem', fontWeight: 800, color: '#111827', letterSpacing: '0.05em', marginBottom: '12px', textTransform: 'uppercase' }}>Sort By</p>
+                  <div
+                    onClick={() => setFilters({ ...filters, sortBy: filters.sortBy === 'rating' ? 'default' : 'rating' })}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', cursor: 'pointer' }}
+                  >
+                    <div style={{
+                      width: '18px', height: '18px', borderRadius: '50%',
+                      border: `2px solid ${filters.sortBy === 'rating' ? '#8B1538' : '#d1d5db'}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      {filters.sortBy === 'rating' && <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#8B1538' }} />}
+                    </div>
+                    <Star style={{ width: 14, height: 14, color: '#facc15', fill: '#facc15' }} />
+                    <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#4b5563' }}>Highest Rated</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowMenu(false)}
+                  style={{ width: '100%', padding: '12px', backgroundColor: '#8B1538', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}
+                >
+                  Apply
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
 
         {/* Store grid */}
         {loading ? (
@@ -109,7 +237,7 @@ export default function HomePage() {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-            {stores.map((store) => (
+            {filtered.map((store) => (
               <StoreCard
                 key={store._id}
                 store={store}
