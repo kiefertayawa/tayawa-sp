@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Star, MessageSquare, User, X, Trash2 } from 'lucide-react';
 import { useReviews } from '../../../hooks';
 import { toast } from 'sonner';
@@ -16,6 +16,13 @@ export default function ReviewsSection({ storeId, storeName, helpText }: Reviews
   const [hoverRating, setHoverRating] = useState(0);
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (showForm && formRef.current) {
+      formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [showForm]);
 
   // Image handling
   const [imageUrls, setImageUrls] = useState<string[]>([]);
@@ -96,7 +103,7 @@ export default function ReviewsSection({ storeId, storeName, helpText }: Reviews
           marginBottom: '16px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
           <h2 style={{ fontWeight: 700, fontSize: '1rem', color: '#111827', margin: 0 }}>Reviews &amp; Ratings</h2>
           {!showForm && (
             <button
@@ -115,7 +122,7 @@ export default function ReviewsSection({ storeId, storeName, helpText }: Reviews
           )}
         </div>
 
-        {helpText && !showForm && (
+        {helpText && (
           <p style={{ fontSize: '0.85rem', color: '#9ca3af', margin: '0 0 20px' }}>
             {helpText}
           </p>
@@ -205,17 +212,21 @@ export default function ReviewsSection({ storeId, storeName, helpText }: Reviews
       {/* ── Write a Review Form (Modal-like card) ── */}
       {showForm && (
         <div
+          ref={formRef}
           style={{
             backgroundColor: '#fff',
             borderRadius: '16px',
             border: '2px solid #8B1538',
             padding: '24px',
             marginBottom: '40px',
-            boxShadow: '0 4px 20px rgba(139,21,56,0.08)'
+            boxShadow: '0 4px 20px rgba(139,21,56,0.08)',
+            scrollMarginTop: '100px'
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2 style={{ fontWeight: 700, fontSize: '1.1rem', color: '#111827', margin: 0 }}>Write a Review for {storeName}</h2>
+            <h2 style={{ fontWeight: 700, fontSize: '1.1rem', color: '#111827', margin: 0 }}>
+              Write a Review for <span style={{ color: '#8B1538' }}>{storeName}</span>
+            </h2>
             <button onClick={handleCancelClick} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: '4px', display: 'flex' }}>
               <X style={{ width: 28, height: 28 }} />
             </button>
@@ -256,8 +267,11 @@ export default function ReviewsSection({ storeId, storeName, helpText }: Reviews
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '10px' }}>
-                Add Photos (URL) <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: '0.8rem' }}>(optional)</span>
+              <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <span>Add Photos (URL) <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: '0.8rem' }}>(optional)</span></span>
+                <span style={{ fontWeight: 400, color: imageUrls.length >= 3 ? '#dc2626' : '#9ca3af', fontSize: '0.75rem' }}>
+                  {imageUrls.length} / 3 photos
+                </span>
               </label>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', alignItems: 'stretch' }}>
                 <input

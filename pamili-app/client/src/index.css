@@ -44,6 +44,12 @@ textarea {
   font-size: inherit;
 }
 
+::placeholder {
+  color: #9ca3af !important;
+  opacity: 1; /* Firefox */
+}
+
+
 /* ── Leaflet map z-index fix (stays behind modals/header) ─── */
 .leaflet-container {
   z-index: 0;

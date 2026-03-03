@@ -21,15 +21,9 @@ const crowdCfg: Record<string, { color: string; bg: string; label: string }> = {
 interface Filters {
   crowdLevels: Set<'low' | 'medium' | 'high'>;
   openNow: boolean;
-  sortBy: 'price-asc' | 'price-desc' | 'rating';
+  sortBy: 'price-asc' | 'price-desc' | 'rating' | 'default';
 }
-const DEFAULT: Filters = { crowdLevels: new Set(), openNow: false, sortBy: 'price-asc' };
-
-const sortLabels: Record<Filters['sortBy'], string> = {
-  'price-asc': 'Price: Low to High',
-  'price-desc': 'Price: High to Low',
-  'rating': 'Highest Rated',
-};
+const DEFAULT: Filters = { crowdLevels: new Set(), openNow: false, sortBy: 'default' };
 
 // ─── open-now helper ──────────────────────────────────────────
 function parseMin(s: string) {
@@ -116,7 +110,9 @@ export default function SearchPage() {
   const lowestPrice: Record<string, number> = {};
   results.forEach(p => { lowestPrice[p._id] = Math.min(...p.prices.map(x => x.price)); });
 
-  // apply filters + sort
+  // apply filters + sort (explicit check for 'default' which maps to 'price-asc')
+  const effectiveSort = filters.sortBy === 'default' ? 'price-asc' : filters.sortBy;
+
   const groups = Object.values(raw)
     .filter(g => {
       const s = g.storeData;
@@ -128,11 +124,20 @@ export default function SearchPage() {
     .map(g => ({
       ...g,
       products: [...g.products].sort((a, b) =>
-        filters.sortBy === 'price-asc' ? a.price - b.price :
-          filters.sortBy === 'price-desc' ? b.price - a.price : 0
+        effectiveSort === 'price-asc' ? a.price - b.price :
+          effectiveSort === 'price-desc' ? b.price - a.price : 0
       )
     }))
-    .sort((a, b) => filters.sortBy === 'rating' ? (b.storeData?.rating ?? 0) - (a.storeData?.rating ?? 0) : 0);
+    .sort((a, b) => {
+      if (effectiveSort === 'rating') {
+        return (b.storeData?.rating ?? 0) - (a.storeData?.rating ?? 0);
+      }
+      const minA = Math.min(...a.products.map(p => p.price));
+      const minB = Math.min(...b.products.map(p => p.price));
+      if (effectiveSort === 'price-asc') return minA - minB;
+      if (effectiveSort === 'price-desc') return minB - minA;
+      return 0;
+    });
 
   const totalProducts = results.length;
   const storeCount = groups.length;
@@ -198,7 +203,7 @@ export default function SearchPage() {
             }}
           >
             <ArrowLeft style={{ width: 16, height: 16, strokeWidth: 2 }} />
-            Back to Map
+            Back to Home
           </button>
         </div>
 
@@ -306,7 +311,7 @@ export default function SearchPage() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 700, fontSize: '1rem', color: '#111827' }}>
+                <span style={{ fontWeight: 600, fontSize: '1rem', color: '#111827' }}>
                   Results ({totalProducts} product{totalProducts !== 1 ? 's' : ''})
                 </span>
 
@@ -331,10 +336,16 @@ export default function SearchPage() {
               </div>
 
               {/* Active chips */}
-              {(activeCnt > 0 || filters.sortBy !== 'price-asc') && (
+              {(activeCnt > 0 || filters.sortBy !== 'default') && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' }}>
-                  {filters.sortBy !== 'price-asc' && (
-                    <Chip label={sortLabels[filters.sortBy]} color="#374151" bg="#f3f4f6" onRemove={() => setFilters(p => ({ ...p, sortBy: 'price-asc' }))} />
+                  {filters.sortBy === 'price-asc' && (
+                    <Chip label="Price: Low to High" color="#014421" bg="#e7f3ed" onRemove={() => setFilters(DEFAULT)} />
+                  )}
+                  {filters.sortBy === 'price-desc' && (
+                    <Chip label="Price: High to Low" color="#374151" bg="#f3f4f6" onRemove={() => setFilters(DEFAULT)} />
+                  )}
+                  {filters.sortBy === 'rating' && (
+                    <Chip label="Highest Rated" color="#374151" bg="#f3f4f6" onRemove={() => setFilters(DEFAULT)} />
                   )}
                   {Array.from(filters.crowdLevels).map(lvl => (
                     <Chip key={lvl} label={crowdCfg[lvl].label} color={crowdCfg[lvl].color} bg={crowdCfg[lvl].bg} onRemove={() => toggleCrowd(lvl)} />
@@ -386,15 +397,17 @@ export default function SearchPage() {
                       >
                         {/* Store header */}
                         <div style={{ padding: '15px 20px', borderBottom: '1px solid #f3f4f6' }}>
-                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '6px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <MapPin style={{ width: 15, height: 15, color: '#8B1538', flexShrink: 0 }} />
-                              <div>
-                                <p style={{ fontWeight: 700, fontSize: '0.95rem', color: '#111827', margin: 0 }}>{storeName}</p>
-                                <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: '2px 0 0' }}>{storeData?.address ?? '—'}</p>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <p style={{ fontWeight: 800, fontSize: '1.05rem', color: '#111827', margin: 0 }}>{storeName}</p>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <MapPin style={{ width: 14, height: 14, color: '#8B1538', flexShrink: 0 }} />
+                                <p style={{ fontSize: '0.78rem', color: '#014421', margin: 0, fontWeight: 500 }}>{storeData?.address ?? '—'}</p>
                               </div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, marginTop: '2px' }}>
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.73rem', fontWeight: 700, color: crowd.color, backgroundColor: crowd.bg, borderRadius: '999px', padding: '3px 10px' }}>
                                 <Users style={{ width: 10, height: 10 }} />{crowd.label}
                               </span>
@@ -404,11 +417,6 @@ export default function SearchPage() {
                               </span>
                             </div>
                           </div>
-                          {storeData?.peakHours?.length ? (
-                            <p style={{ fontSize: '0.79rem', color: '#6b7280', margin: 0, fontWeight: 500 }}>
-                              Peak Hours: {storeData.peakHours[0]}
-                            </p>
-                          ) : null}
                         </div>
 
                         {/* Product rows */}
@@ -513,7 +521,7 @@ function FiltersPanel({ filters, setFilters, toggleCrowd, onApply }: {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827' }}>Filters</span>
-        <button onClick={() => setFilters({ crowdLevels: new Set(), openNow: false, sortBy: 'price-asc' })} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: '#8B1538', fontWeight: 600 }}>
+        <button onClick={() => setFilters(DEFAULT)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: '#8B1538', fontWeight: 600 }}>
           Reset all
         </button>
       </div>
@@ -541,7 +549,13 @@ function FiltersPanel({ filters, setFilters, toggleCrowd, onApply }: {
       <SectionLabel style={{ marginTop: '14px' }}>Price</SectionLabel>
       {(['price-asc', 'price-desc'] as const).map(opt => (
         <FilterRow key={opt}>
-          <input type="radio" name="sort" checked={filters.sortBy === opt} onChange={() => setFilters(p => ({ ...p, sortBy: opt }))} style={{ accentColor: '#8B1538', cursor: 'pointer' }} />
+          <input
+            type="radio"
+            name="sort"
+            checked={filters.sortBy === opt || (opt === 'price-asc' && filters.sortBy === 'default')}
+            onChange={() => setFilters(p => ({ ...p, sortBy: opt }))}
+            style={{ accentColor: '#8B1538', cursor: 'pointer' }}
+          />
           {{ 'price-asc': 'Low to High', 'price-desc': 'High to Low' }[opt]}
         </FilterRow>
       ))}

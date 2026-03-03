@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star, Users } from 'lucide-react';
+import { Star, Users, ArrowUp } from 'lucide-react';
 import { useStores } from '../hooks';
 import type { Store } from '../types';
 import HomeMap from '../components/maps/HomeMap';
@@ -13,6 +14,19 @@ const crowdConfig = {
 export default function HomePage() {
   const navigate = useNavigate();
   const { stores, loading } = useStores();
+  const [showScroll, setShowScroll] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScroll(window.scrollY > 300);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <div style={{ backgroundColor: '#f5f6fa', minHeight: '100vh' }}>
@@ -105,6 +119,41 @@ export default function HomePage() {
           </div>
         )}
       </div>
+
+      {/* Scroll to Top Button */}
+      {showScroll && (
+        <button
+          onClick={scrollToTop}
+          style={{
+            position: 'fixed',
+            bottom: '32px',
+            right: '32px',
+            width: '50px',
+            height: '50px',
+            borderRadius: '50%',
+            backgroundColor: '#8B1538',
+            color: '#fff',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(139,21,56,0.3)',
+            zIndex: 1000,
+            transition: 'all 0.2s ease-in-out',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.transform = 'translateY(-5px)';
+            e.currentTarget.style.boxShadow = '0 6px 16px rgba(139,21,56,0.4)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(139,21,56,0.3)';
+          }}
+        >
+          <ArrowUp style={{ width: 24, height: 24, strokeWidth: 3 }} />
+        </button>
+      )}
     </div>
   );
 }
