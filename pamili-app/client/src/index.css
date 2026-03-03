@@ -50,6 +50,12 @@ textarea {
   /* Firefox */
 }
 
+/* ── Sonner Toast Speed Override ─────────────────────────── */
+[data-sonner-toaster] {
+  --sonner-transition-duration: 200ms !important;
+}
+
+
 
 /* ── Leaflet map z-index fix (stays behind modals/header) ─── */
 .leaflet-container {

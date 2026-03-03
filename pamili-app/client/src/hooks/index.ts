@@ -14,8 +14,8 @@ export function useStores() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchStores = useCallback(() => {
-    setLoading(true);
+  const fetchStores = useCallback((silent = false) => {
+    if (!silent) setLoading(true);
     storeService.getAll()
       .then((res) => setStores(res.data.data))
       .catch((err) => setError(err.message))
@@ -27,12 +27,12 @@ export function useStores() {
 
   // Sync: Refetch on focus, visibility change, or background timer
   useEffect(() => {
-    const onFocus = () => fetchStores();
+    const onFocus = () => fetchStores(true); // Pass true for silent
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onFocus);
 
     // Background polling (every 30s)
-    const timer = setInterval(fetchStores, 30000);
+    const timer = setInterval(() => fetchStores(true), 30000);
 
     return () => {
       window.removeEventListener('focus', onFocus);
@@ -48,9 +48,9 @@ export function useStore(id: string | undefined) {
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const fetchStore = useCallback(() => {
+  const fetchStore = useCallback((silent = false) => {
     if (!id) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     storeService.getById(id)
       .then((res) => setStore(res.data.data))
       .finally(() => setLoading(false));
@@ -59,11 +59,11 @@ export function useStore(id: string | undefined) {
   useEffect(() => { fetchStore(); }, [fetchStore]);
 
   useEffect(() => {
-    const onFocus = () => fetchStore();
+    const onFocus = () => fetchStore(true);
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onFocus);
 
-    const timer = setInterval(fetchStore, 30000);
+    const timer = setInterval(() => fetchStore(true), 30000);
 
     return () => {
       window.removeEventListener('focus', onFocus);
@@ -81,30 +81,30 @@ export function useProductSearch() {
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
 
-  const search = useCallback(async (q: string) => {
+  const search = useCallback(async (q: string, silent = false) => {
     if (!q.trim()) return;
     setQuery(q);
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const res = await productService.search(q);
       setResults(res.data.data);
     } catch {
       setResults([]);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
-  const refetch = useCallback(() => {
-    if (query) search(query);
+  const refetch = useCallback((silent = false) => {
+    if (query) search(query, silent);
   }, [query, search]);
 
   useEffect(() => {
     if (!query) return;
-    const onFocus = () => refetch();
+    const onFocus = () => refetch(true);
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onFocus);
-    const timer = setInterval(refetch, 20000);
+    const timer = setInterval(() => refetch(true), 20000);
     return () => {
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onFocus);
@@ -119,9 +119,9 @@ export function useStoreProducts(storeId: string | undefined) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchProducts = useCallback(() => {
+  const fetchProducts = useCallback((silent = false) => {
     if (!storeId) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     storeService.getProducts(storeId)
       .then((res) => setProducts(res.data.data))
       .finally(() => setLoading(false));
@@ -130,11 +130,11 @@ export function useStoreProducts(storeId: string | undefined) {
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   useEffect(() => {
-    const onFocus = () => fetchProducts();
+    const onFocus = () => fetchProducts(true);
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onFocus);
 
-    const timer = setInterval(fetchProducts, 30000);
+    const timer = setInterval(() => fetchProducts(true), 30000);
 
     return () => {
       window.removeEventListener('focus', onFocus);
@@ -151,9 +151,9 @@ export function useReviews(storeId: string | undefined) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchReviews = useCallback(() => {
+  const fetchReviews = useCallback((silent = false) => {
     if (!storeId) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     reviewService.getByStore(storeId)
       .then((res) => setReviews(res.data.data))
       .finally(() => setLoading(false));
@@ -162,11 +162,11 @@ export function useReviews(storeId: string | undefined) {
   useEffect(() => { fetchReviews(); }, [fetchReviews]);
 
   useEffect(() => {
-    const onFocus = () => fetchReviews();
+    const onFocus = () => fetchReviews(true);
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onFocus);
 
-    const timer = setInterval(fetchReviews, 20000); // Reviews might need more frequent sync
+    const timer = setInterval(() => fetchReviews(true), 20000); // Reviews might need more frequent sync
 
     return () => {
       window.removeEventListener('focus', onFocus);
@@ -204,8 +204,8 @@ export function usePendingItems() {
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<Store[]>([]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const [prodRes, revRes, statsRes, storeRes] = await Promise.all([
         adminService.getPendingProducts(),
@@ -270,7 +270,7 @@ export function usePendingItems() {
   const addStore = async (data: { name: string; address: string; lat: number; lng: number; image: string; peakHours?: string[]; offPeakHours?: string[] }) => {
     try {
       await adminService.addStore(data);
-      await load();
+      await load(true);
       return true;
     } catch { return false; }
   };
@@ -285,12 +285,12 @@ export function usePendingItems() {
   };
 
   useEffect(() => {
-    const onFocus = () => load();
+    const onFocus = () => load(true);
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onFocus);
 
     // Admin data needs aggressive polling
-    const timer = setInterval(load, 10000);
+    const timer = setInterval(() => load(true), 10000);
 
     return () => {
       window.removeEventListener('focus', onFocus);
