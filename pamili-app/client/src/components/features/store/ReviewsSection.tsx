@@ -44,10 +44,6 @@ export default function ReviewsSection({ storeId, storeName, helpText }: Reviews
       toast.error('Rating is required.');
       return;
     }
-    if (!text.trim()) {
-      toast.error('Review text is required.');
-      return;
-    }
 
     setSubmitting(true);
     const ok = await submitReview({ rating, text, images: imageUrls });
@@ -244,7 +240,9 @@ export default function ReviewsSection({ storeId, storeName, helpText }: Reviews
             </div>
 
             <div style={{ marginBottom: '20px' }}>
-              <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '8px' }}>Your Message</label>
+              <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '8px' }}>
+                Your Message <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: '0.8rem' }}>(optional)</span>
+              </label>
               <textarea
                 value={text} onChange={e => setText(e.target.value)}
                 placeholder="How was the store? Was it crowded? Are the prices accurate?"

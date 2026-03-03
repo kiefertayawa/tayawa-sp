@@ -40,7 +40,7 @@ export interface Store {
   peakHours: string[];
   offPeakHours: string[];
   image: string;
-  categories: string[];
+  createdAt?: string;
 }
 
 export interface CartItem {

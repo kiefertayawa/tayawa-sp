@@ -210,6 +210,7 @@ export const adminService = {
         pendingReviews: 3,
         approvedReviews: 12,
         rejectedReviews: 4,
+        totalStores: MOCK_STORES.length,
       });
     }
     return api.get<ApiResponse<{
@@ -219,7 +220,37 @@ export const adminService = {
       pendingReviews: number;
       approvedReviews: number;
       rejectedReviews: number;
+      totalStores: number;
     }>>('/admin/stats');
+  },
+
+  addStore: (data: { name: string; address: string; lat: number; lng: number; image: string; peakHours?: string[]; offPeakHours?: string[] }) => {
+    if (USE_MOCK) {
+      const store: Store = {
+        _id: `store-${Date.now()}`,
+        name: data.name,
+        address: data.address,
+        location: { lat: data.lat, lng: data.lng },
+        image: data.image,
+        peakHours: data.peakHours || [],
+        offPeakHours: data.offPeakHours || [],
+        rating: 0,
+        reviewCount: 0,
+        crowdLevel: 'low'
+      };
+      return mockResponse(store);
+    }
+    return api.post<ApiResponse<Store>>('/admin/stores', data);
+  },
+
+  getAllStores: () => {
+    if (USE_MOCK) return mockResponse(MOCK_STORES);
+    return api.get<ApiResponse<Store[]>>('/stores');
+  },
+
+  deleteStore: (id: string) => {
+    if (USE_MOCK) return mockResponse({ _id: id });
+    return api.delete<ApiResponse<{}>>(`/admin/stores/${id}`);
   },
 };
 

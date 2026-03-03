@@ -138,9 +138,9 @@ export default function SubmitProductForm({ isOpen, onClose }: SubmitProductForm
               <button
                 type="button"
                 onClick={onClose}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', borderRadius: '6px', color: '#6b7280' }}
+                style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}
               >
-                <X style={{ width: 20, height: 20 }} />
+                <X style={{ width: 18, height: 18 }} />
               </button>
             </div>
 

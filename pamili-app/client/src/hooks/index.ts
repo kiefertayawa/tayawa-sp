@@ -120,20 +120,24 @@ export function usePendingItems() {
     pendingReviews: 0,
     approvedReviews: 0,
     rejectedReviews: 0,
+    totalStores: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [stores, setStores] = useState<Store[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [prodRes, revRes, statsRes] = await Promise.all([
+      const [prodRes, revRes, statsRes, storeRes] = await Promise.all([
         adminService.getPendingProducts(),
         adminService.getPendingReviews(),
         adminService.getStats(),
+        adminService.getAllStores(),
       ]);
       setPendingProducts(prodRes.data.data);
       setPendingReviews(revRes.data.data);
       setStats(statsRes.data.data);
+      setStores(storeRes.data.data);
     } catch (err) {
       console.error('Failed to load admin data:', err);
     } finally {
@@ -186,14 +190,36 @@ export function usePendingItems() {
     } catch { return false; }
   };
 
+  const addStore = async (data: { name: string; address: string; lat: number; lng: number; image: string; peakHours?: string[]; offPeakHours?: string[] }) => {
+    try {
+      await adminService.addStore(data);
+      refreshStats();
+      return true;
+    } catch { return false; }
+  };
+
+
+  const deleteStoreHook = async (id: string) => {
+    try {
+      await adminService.deleteStore(id);
+      setStores((s) => s.filter((x) => x._id !== id));
+      refreshStats();
+      return true;
+    } catch { return false; }
+  };
+
   return {
     pendingProducts,
     pendingReviews,
+    stores,
     stats,
     loading,
     approveProduct,
     rejectProduct,
     approveReview,
     rejectReview,
+    addStore,
+    deleteStore: deleteStoreHook,
+    refresh: load
   };
 }

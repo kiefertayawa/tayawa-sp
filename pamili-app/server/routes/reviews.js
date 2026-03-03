@@ -21,8 +21,8 @@ router.post('/', async (req, res) => {
   try {
     const { storeId, rating, text } = req.body;
 
-    if (!storeId || !rating || !text) {
-      return res.status(400).json({ success: false, error: 'storeId, rating, and text are required' });
+    if (!storeId || !rating) {
+      return res.status(400).json({ success: false, error: 'storeId and rating are required' });
     }
 
     const store = await Store.findById(storeId);

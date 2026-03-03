@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Star, Package, LogIn, Eye, EyeOff, CheckCircle, X, User } from 'lucide-react';
+import { Star, Package, LogIn, Eye, EyeOff, CheckCircle, X, User, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePendingItems } from '../hooks';
 import { useAuth } from '../context/AuthContext';
@@ -30,7 +30,8 @@ const formatFullDateTime = (dateStr?: string) => {
 
 export default function AdminPage() {
   const { isAdmin, login } = useAuth();
-  const [tab, setTab] = useState<'products' | 'reviews'>('products');
+  const [tab, setTab] = useState<'products' | 'reviews' | 'stores'>('products');
+  const [showAddStore, setShowAddStore] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -39,8 +40,8 @@ export default function AdminPage() {
   // Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState<{
     show: boolean;
-    type: 'product' | 'review';
-    action: 'approve' | 'reject';
+    type: 'product' | 'review' | 'store';
+    action: 'approve' | 'reject' | 'delete';
     id: string;
     name: string;
   }>({ show: false, type: 'product', action: 'reject', id: '', name: '' });
@@ -55,8 +56,9 @@ export default function AdminPage() {
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
 
   const {
-    pendingProducts, pendingReviews, stats, loading,
+    pendingProducts, pendingReviews, stores, stats, loading,
     approveProduct, rejectProduct, approveReview, rejectReview,
+    addStore, deleteStore
   } = usePendingItems();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -85,6 +87,10 @@ export default function AdminPage() {
     setConfirmModal({ show: true, type: 'review', action: 'reject', id, name });
   };
 
+  const handleDeleteStore = (id: string, name: string) => {
+    setConfirmModal({ show: true, type: 'store', action: 'delete', id, name });
+  };
+
   const handleOpenReviewDetail = (review: any) => {
     setViewReviewModal({ show: true, review });
   };
@@ -105,6 +111,10 @@ export default function AdminPage() {
       const ok = await rejectReview(id);
       if (ok) toast.success('Review rejected.');
       else toast.error('Failed to reject review.');
+    } else if (type === 'store' && action === 'delete') {
+      const ok = await deleteStore(id);
+      if (ok) toast.success('Store deleted.');
+      else toast.error('Failed to delete store.');
     }
   };
 
@@ -210,10 +220,27 @@ export default function AdminPage() {
   return (
     <div style={{ backgroundColor: '#f5f6fa', minHeight: '100vh' }}>
       <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '32px 28px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#8B1538', margin: 0 }}>Admin Dashboard</h1>
+          <button
+            onClick={() => setShowAddStore(true)}
+            style={{
+              padding: '10px 20px', fontSize: '0.875rem', fontWeight: 700,
+              color: '#fff', backgroundColor: '#8B1538',
+              border: 'none', borderRadius: '10px', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: '8px',
+              transition: 'opacity 0.2s'
+            }}
+          >
+            <Plus style={{ width: 18, height: 18 }} />
+            Add Store
+          </button>
+        </div>
 
         {/* ── Stat cards ─────────────────────────────── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', marginBottom: '24px' }}>
           {[
+            { label: 'Total Stores', value: stats.totalStores || 0, color: '#16a34a' },
             { label: 'Pending Products', value: stats.pendingProducts, color: '#8B1538' },
             { label: 'Pending Reviews', value: stats.pendingReviews, color: '#8B1538' },
             { label: 'Accepted Entries', value: stats.approvedProducts + stats.approvedReviews, color: '#16a34a' },
@@ -247,7 +274,7 @@ export default function AdminPage() {
         >
           {/* Tab bar */}
           <div style={{ display: 'flex', padding: '6px', backgroundColor: '#f3f4f6', gap: '4px' }}>
-            {(['products', 'reviews'] as const).map(t => (
+            {(['products', 'stores', 'reviews'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -263,7 +290,9 @@ export default function AdminPage() {
               >
                 {t === 'products'
                   ? `Products (${pendingProducts.length})`
-                  : `Reviews (${pendingReviews.length})`}
+                  : t === 'stores'
+                    ? `Stores (${stores.length})`
+                    : `Reviews (${pendingReviews.length})`}
               </button>
             ))}
           </div>
@@ -330,7 +359,7 @@ export default function AdminPage() {
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 500, color: '#111827' }}>
                         {p.name}
                       </td>
-                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#0d9488', fontWeight: 500 }}>
+                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#111827', fontWeight: 500 }}>
                         {p.prices?.[0]?.storeName || 'Unknown'}
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 600, color: '#8B1538' }}>
@@ -371,6 +400,87 @@ export default function AdminPage() {
                 </tbody>
               </table>
             )
+          ) : tab === 'stores' ? (
+            stores.length === 0 ? (
+              <div style={{ padding: '64px', textAlign: 'center', color: '#9ca3af' }}>
+                <CheckCircle style={{ width: 40, height: 40, color: '#e5e7eb', margin: '0 auto 8px' }} />
+                <p style={{ fontSize: '0.875rem' }}>No stores available</p>
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                    {['Image', 'Store Name', 'Rating', 'Date Created', 'Actions'].map(h => (
+                      <th
+                        key={h}
+                        style={{
+                          textAlign: 'left', padding: '12px 18px',
+                          fontSize: '0.8rem', fontWeight: 700,
+                          color: '#374151', letterSpacing: '0.02em',
+                        }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {stores.map((s, idx) => (
+                    <tr
+                      key={s._id}
+                      onMouseEnter={() => setHoveredRow(s._id)}
+                      onMouseLeave={() => setHoveredRow(null)}
+                      style={{
+                        borderBottom: idx < stores.length - 1 ? '1px solid #f9fafb' : 'none',
+                        backgroundColor: hoveredRow === s._id ? '#f9fafb' : 'transparent',
+                        transition: 'background-color 0.2s',
+                        cursor: 'default',
+                      }}
+                    >
+                      <td style={{ padding: '14px 18px' }}>
+                        {s.image ? (
+                          <img
+                            src={s.image}
+                            alt={s.name}
+                            style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: '8px' }}
+                            onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available')}
+                          />
+                        ) : (
+                          <div style={{ width: 48, height: 48, backgroundColor: '#f3f4f6', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Package style={{ width: 20, height: 20, color: '#d1d5db' }} />
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>
+                        {s.name}
+                      </td>
+                      <td style={{ padding: '14px 18px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Star style={{ width: 14, height: 14, fill: '#facc15', color: '#facc15' }} />
+                          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>{s.rating.toFixed(1)}</span>
+                          <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>({s.reviewCount})</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280' }}>
+                        {formatShortDate(s.createdAt)}
+                      </td>
+                      <td style={{ padding: '14px 18px' }}>
+                        <button
+                          onClick={() => handleDeleteStore(s._id, s.name)}
+                          style={{
+                            padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
+                            color: '#dc2626', backgroundColor: '#fff',
+                            border: '1.5px solid #dc2626', borderRadius: '6px', cursor: 'pointer',
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )
           ) : (
             pendingReviews.length === 0 ? (
               <div style={{ padding: '64px', textAlign: 'center', color: '#9ca3af' }}>
@@ -381,7 +491,7 @@ export default function AdminPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    {['User', 'Rating', 'Review', 'Date', 'Actions'].map(h => (
+                    {['Store', 'Rating', 'Review', 'Date', 'Actions'].map(h => (
                       <th
                         key={h}
                         style={{
@@ -409,7 +519,9 @@ export default function AdminPage() {
                         transition: 'background-color 0.2s',
                       }}
                     >
-                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 500, color: '#111827' }}>Anonymous User</td>
+                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 500, color: '#111827' }}>
+                        {stores.find(st => st._id === r.storeId)?.name ?? 'Unknown Store'}
+                      </td>
                       <td style={{ padding: '14px 18px' }}>
                         <div style={{ display: 'flex', gap: '2px' }}>
                           {[1, 2, 3, 4, 5].map(s => (
@@ -478,268 +590,497 @@ export default function AdminPage() {
       </div>
 
       {/* ── Confirmation Modal ────────────────────────── */}
-      {confirmModal.show && (
-        <>
-          <div
-            onClick={() => setConfirmModal(p => ({ ...p, show: false }))}
-            style={{
-              position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
-              backdropFilter: 'blur(4px)', zIndex: 1000,
-            }}
-          />
-          <div
-            style={{
-              position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-              backgroundColor: '#fff', borderRadius: '16px', padding: '28px',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.15)', zIndex: 1001,
-              width: '100%', maxWidth: '380px', textAlign: 'center',
-            }}
-          >
+      {
+        confirmModal.show && (
+          <>
+            <div
+              onClick={() => setConfirmModal(p => ({ ...p, show: false }))}
+              style={{
+                position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
+                backdropFilter: 'blur(4px)', zIndex: 1000,
+              }}
+            />
             <div
               style={{
-                width: '56px', height: '56px', borderRadius: '50%',
-                backgroundColor: '#fee2e2', color: '#dc2626',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 16px',
+                position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                backgroundColor: '#fff', borderRadius: '16px', padding: '28px',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.15)', zIndex: 1001,
+                width: '100%', maxWidth: '380px', textAlign: 'center',
               }}
             >
-              <X style={{ width: 28, height: 28 }} />
-            </div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>
-              Confirm Rejection
-            </h3>
-            <p style={{ fontSize: '0.9rem', color: '#6b7280', margin: '0 0 24px', lineHeight: 1.5 }}>
-              Are you sure you want to reject the {confirmModal.type} <strong>{confirmModal.name}</strong>?
-            </p>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={() => setConfirmModal(p => ({ ...p, show: false }))}
+              <div
                 style={{
-                  flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600,
-                  color: '#374151', backgroundColor: '#f3f4f6', border: 'none',
-                  borderRadius: '10px', cursor: 'pointer',
+                  width: '56px', height: '56px', borderRadius: '50%',
+                  backgroundColor: '#fee2e2', color: '#dc2626',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 16px',
                 }}
               >
-                Go Back
-              </button>
-              <button
-                onClick={executeConfirmedAction}
-                style={{
-                  flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600,
-                  color: '#fff', backgroundColor: '#dc2626', border: 'none',
-                  borderRadius: '10px', cursor: 'pointer',
-                }}
-              >
-                Reject
-              </button>
+                <X style={{ width: 28, height: 28 }} />
+              </div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>
+                Confirm {confirmModal.action === 'delete' ? 'Deletion' : 'Rejection'}
+              </h3>
+              <p style={{ fontSize: '0.9rem', color: '#6b7280', margin: '0 0 24px', lineHeight: 1.5 }}>
+                Are you sure you want to {confirmModal.action === 'delete' ? 'delete' : 'reject'} the {confirmModal.type} <strong>{confirmModal.name}</strong>?
+              </p>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => setConfirmModal(p => ({ ...p, show: false }))}
+                  style={{
+                    flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600,
+                    color: '#374151', backgroundColor: '#f3f4f6', border: 'none',
+                    borderRadius: '10px', cursor: 'pointer',
+                  }}
+                >
+                  Go Back
+                </button>
+                <button
+                  onClick={executeConfirmedAction}
+                  style={{
+                    flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600,
+                    color: '#fff', backgroundColor: '#dc2626', border: 'none',
+                    borderRadius: '10px', cursor: 'pointer',
+                  }}
+                >
+                  {confirmModal.action === 'delete' ? 'Delete' : 'Reject'}
+                </button>
+              </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )
+      }
 
       {/* ── Review Content Detail Modal ── */}
-      {viewReviewModal.show && viewReviewModal.review && (
-        <>
-          <div
-            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', zIndex: 1100 }}
-            onClick={() => setViewReviewModal({ show: false, review: null })}
-          />
-          <div
-            style={{
-              position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-              backgroundColor: '#fff', borderRadius: '20px', padding: '0',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', zIndex: 1101,
-              width: '90%', maxWidth: '600px', maxHeight: '85vh',
-              display: 'flex', flexDirection: 'column', overflow: 'hidden'
-            }}
-          >
-            {/* Header */}
-            <div style={{ padding: '24px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Review Details</h3>
-                <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>Submitted on {formatFullDateTime(viewReviewModal.review.date)}</p>
-              </div>
-              <button
-                onClick={() => setViewReviewModal({ show: false, review: null })}
-                style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}
-              >
-                <X style={{ width: 20, height: 20 }} />
-              </button>
-            </div>
-
-            {/* Scrollable Content */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                <div style={{ width: 44, height: 44, borderRadius: '50%', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <User style={{ width: 22, height: 22, color: '#9ca3af' }} />
-                </div>
+      {
+        viewReviewModal.show && viewReviewModal.review && (
+          <>
+            <div
+              style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', zIndex: 1100 }}
+              onClick={() => setViewReviewModal({ show: false, review: null })}
+            />
+            <div
+              style={{
+                position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                backgroundColor: '#fff', borderRadius: '20px', padding: '0',
+                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', zIndex: 1101,
+                width: '90%', maxWidth: '600px', maxHeight: '85vh',
+                display: 'flex', flexDirection: 'column', overflow: 'hidden'
+              }}
+            >
+              {/* Header */}
+              <div style={{ padding: '24px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <p style={{ fontWeight: 700, fontSize: '1rem', color: '#111827', margin: '0 0 2px' }}>Anonymous User</p>
-                  <div style={{ display: 'flex', gap: '2px' }}>
-                    {[1, 2, 3, 4, 5].map(s => (
-                      <Star
-                        key={s}
-                        style={{ width: 16, height: 16, fill: s <= viewReviewModal.review.rating ? '#facc15' : '#e5e7eb', color: s <= viewReviewModal.review.rating ? '#facc15' : '#e5e7eb' }}
-                      />
-                    ))}
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Review Details</h3>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>Submitted on {formatFullDateTime(viewReviewModal.review.date)}</p>
+                </div>
+                <button
+                  onClick={() => setViewReviewModal({ show: false, review: null })}
+                  style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}
+                >
+                  <X style={{ width: 20, height: 20 }} />
+                </button>
+              </div>
+
+              {/* Scrollable Content */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                  <div style={{ width: 44, height: 44, borderRadius: '50%', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <User style={{ width: 22, height: 22, color: '#9ca3af' }} />
+                  </div>
+                  <div>
+                    <p style={{ fontWeight: 700, fontSize: '1rem', color: '#111827', margin: '0 0 2px' }}>Anonymous User</p>
+                    <div style={{ display: 'flex', gap: '2px' }}>
+                      {[1, 2, 3, 4, 5].map(s => (
+                        <Star
+                          key={s}
+                          style={{ width: 16, height: 16, fill: s <= viewReviewModal.review.rating ? '#facc15' : '#e5e7eb', color: s <= viewReviewModal.review.rating ? '#facc15' : '#e5e7eb' }}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div style={{ backgroundColor: '#f9fafb', padding: '16px', borderRadius: '12px', border: '1px solid #f3f4f6', marginBottom: '24px' }}>
-                <p style={{ fontSize: '1rem', color: '#374151', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                  {viewReviewModal.review.text}
-                </p>
-              </div>
-
-              {viewReviewModal.review.images && viewReviewModal.review.images.length > 0 && (
-                <div>
-                  <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '12px' }}>Attached Photos</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {viewReviewModal.review.images.map((img: string, i: number) => (
-                      <img
-                        key={i} src={img} alt="Full view"
-                        style={{ width: '100%', borderRadius: '12px', border: '1px solid #e5e7eb', maxHeight: '400px', objectFit: 'contain', backgroundColor: '#fafafa' }}
-                        onError={(e) => e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available'}
-                      />
-                    ))}
-                  </div>
+                <div style={{ backgroundColor: '#f9fafb', padding: '16px', borderRadius: '12px', border: '1px solid #f3f4f6', marginBottom: '24px' }}>
+                  <p style={{ fontSize: '1rem', color: '#374151', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                    {viewReviewModal.review.text}
+                  </p>
                 </div>
-              )}
-            </div>
 
-            {/* Actions Footer */}
-            <div style={{ padding: '24px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: '12px', justifyContent: 'flex-end', backgroundColor: '#fafafa' }}>
-              <button
-                onClick={() => {
-                  handleApproveReview(viewReviewModal.review._id);
-                  setViewReviewModal({ show: false, review: null });
-                }}
-                style={{
-                  padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
-                  color: '#fff', backgroundColor: '#16a34a',
-                  border: 'none', borderRadius: '10px', cursor: 'pointer',
-                  minWidth: '120px'
-                }}
-              >
-                Approve
-              </button>
-              <button
-                onClick={() => {
-                  handleRejectReview(viewReviewModal.review._id, viewReviewModal.review.userName);
-                  setViewReviewModal({ show: false, review: null });
-                }}
-                style={{
-                  padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
-                  color: '#dc2626', backgroundColor: '#fff',
-                  border: '1.5px solid #dc2626', borderRadius: '10px', cursor: 'pointer',
-                  minWidth: '120px'
-                }}
-              >
-                Reject
-              </button>
+                {viewReviewModal.review.images && viewReviewModal.review.images.length > 0 && (
+                  <div>
+                    <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '12px' }}>Attached Photos</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {viewReviewModal.review.images.map((img: string, i: number) => (
+                        <img
+                          key={i} src={img} alt="Full view"
+                          style={{ width: '100%', borderRadius: '12px', border: '1px solid #e5e7eb', maxHeight: '400px', objectFit: 'contain', backgroundColor: '#fafafa' }}
+                          onError={(e) => e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available'}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions Footer */}
+              <div style={{ padding: '24px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: '12px', justifyContent: 'flex-end', backgroundColor: '#fafafa' }}>
+                <button
+                  onClick={() => {
+                    handleApproveReview(viewReviewModal.review._id);
+                    setViewReviewModal({ show: false, review: null });
+                  }}
+                  style={{
+                    padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
+                    color: '#fff', backgroundColor: '#16a34a',
+                    border: 'none', borderRadius: '10px', cursor: 'pointer',
+                    minWidth: '120px'
+                  }}
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => {
+                    handleRejectReview(viewReviewModal.review._id, viewReviewModal.review.userName);
+                    setViewReviewModal({ show: false, review: null });
+                  }}
+                  style={{
+                    padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
+                    color: '#dc2626', backgroundColor: '#fff',
+                    border: '1.5px solid #dc2626', borderRadius: '10px', cursor: 'pointer',
+                    minWidth: '120px'
+                  }}
+                >
+                  Reject
+                </button>
+              </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )
+      }
 
       {/* ── Product Content Detail Modal ── */}
-      {viewProductModal.show && viewProductModal.product && (
-        <>
-          <div
-            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', zIndex: 1100 }}
-            onClick={() => setViewProductModal({ show: false, product: null })}
-          />
-          <div
-            style={{
-              position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-              backgroundColor: '#fff', borderRadius: '20px', padding: '0',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', zIndex: 1101,
-              width: '90%', maxWidth: '600px', maxHeight: '85vh',
-              display: 'flex', flexDirection: 'column', overflow: 'hidden'
-            }}
-          >
-            {/* Header */}
-            <div style={{ padding: '24px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Product Details</h3>
-                <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>Submitted on {formatFullDateTime(viewProductModal.product.submittedDate)}</p>
+      {
+        viewProductModal.show && viewProductModal.product && (
+          <>
+            <div
+              style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', zIndex: 1100 }}
+              onClick={() => setViewProductModal({ show: false, product: null })}
+            />
+            <div
+              style={{
+                position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                backgroundColor: '#fff', borderRadius: '20px', padding: '0',
+                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', zIndex: 1101,
+                width: '90%', maxWidth: '600px', maxHeight: '85vh',
+                display: 'flex', flexDirection: 'column', overflow: 'hidden'
+              }}
+            >
+              {/* Header */}
+              <div style={{ padding: '24px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Product Details</h3>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>Submitted on {formatFullDateTime(viewProductModal.product.submittedDate)}</p>
+                </div>
+                <button
+                  onClick={() => setViewProductModal({ show: false, product: null })}
+                  style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}
+                >
+                  <X style={{ width: 20, height: 20 }} />
+                </button>
               </div>
-              <button
-                onClick={() => setViewProductModal({ show: false, product: null })}
-                style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}
-              >
-                <X style={{ width: 20, height: 20 }} />
-              </button>
-            </div>
 
-            {/* Scrollable Content */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-              <div style={{ backgroundColor: '#f9fafb', padding: '24px', borderRadius: '16px', border: '1px solid #f3f4f6', marginBottom: '24px' }}>
-                <h4 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#111827', margin: '0 0 16px' }}>{viewProductModal.product.name}</h4>
+              {/* Scrollable Content */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+                <div style={{ backgroundColor: '#f9fafb', padding: '24px', borderRadius: '16px', border: '1px solid #f3f4f6', marginBottom: '24px' }}>
+                  <h4 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#111827', margin: '0 0 16px' }}>{viewProductModal.product.name}</h4>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                  <div>
-                    <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Store Location</p>
-                    <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0d9488', margin: 0 }}>{viewProductModal.product.prices?.[0]?.storeName}</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                    <div>
+                      <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Store Location</p>
+                      <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0d9488', margin: 0 }}>{viewProductModal.product.prices?.[0]?.storeName}</p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Current Price</p>
+                      <p style={{ fontSize: '1.1rem', fontWeight: 800, color: '#8B1538', margin: 0 }}>₱{(viewProductModal.product.prices?.[0]?.price || 0).toFixed(2)}</p>
+                    </div>
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <div style={{ height: '1px', backgroundColor: '#f3f4f6', margin: '4px 0 16px' }} />
+                      <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Submitted By</p>
+                      <p style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111827', margin: 0 }}>Anonymous User</p>
+                    </div>
                   </div>
-                  <div>
-                    <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Current Price</p>
-                    <p style={{ fontSize: '1.1rem', fontWeight: 800, color: '#8B1538', margin: 0 }}>₱{(viewProductModal.product.prices?.[0]?.price || 0).toFixed(2)}</p>
-                  </div>
-                  <div style={{ gridColumn: 'span 2' }}>
-                    <div style={{ height: '1px', backgroundColor: '#f3f4f6', margin: '4px 0 16px' }} />
-                    <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Submitted By</p>
-                    <p style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111827', margin: 0 }}>Anonymous User</p>
-                  </div>
+                </div>
+
+                <div>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '12px', marginLeft: '4px' }}>Image</p>
+                  <img
+                    src={viewProductModal.product.image || 'https://placehold.co/400x400?text=No+Image'}
+                    alt="Product Full"
+                    style={{ width: '100%', borderRadius: '16px', border: '1px solid #e5e7eb', maxHeight: '400px', objectFit: 'contain', backgroundColor: '#fafafa' }}
+                    onError={(e) => e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available'}
+                  />
                 </div>
               </div>
 
-              <div>
-                <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '12px', marginLeft: '4px' }}>Image</p>
-                <img
-                  src={viewProductModal.product.image || 'https://placehold.co/400x400?text=No+Image'}
-                  alt="Product Full"
-                  style={{ width: '100%', borderRadius: '16px', border: '1px solid #e5e7eb', maxHeight: '400px', objectFit: 'contain', backgroundColor: '#fafafa' }}
-                  onError={(e) => e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available'}
-                />
+              {/* Actions Footer */}
+              <div style={{ padding: '24px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: '12px', justifyContent: 'flex-end', backgroundColor: '#fafafa' }}>
+                <button
+                  onClick={() => {
+                    handleApproveProduct(viewProductModal.product._id);
+                    setViewProductModal({ show: false, product: null });
+                  }}
+                  style={{
+                    padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
+                    color: '#fff', backgroundColor: '#16a34a',
+                    border: 'none', borderRadius: '10px', cursor: 'pointer',
+                    minWidth: '120px'
+                  }}
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => {
+                    handleRejectProduct(viewProductModal.product._id, viewProductModal.product.name);
+                    setViewProductModal({ show: false, product: null });
+                  }}
+                  style={{
+                    padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
+                    color: '#dc2626', backgroundColor: '#fff',
+                    border: '1.5px solid #dc2626', borderRadius: '10px', cursor: 'pointer',
+                    minWidth: '120px'
+                  }}
+                >
+                  Reject
+                </button>
               </div>
             </div>
+          </>
+        )}
 
-            {/* Actions Footer */}
-            <div style={{ padding: '24px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: '12px', justifyContent: 'flex-end', backgroundColor: '#fafafa' }}>
-              <button
-                onClick={() => {
-                  handleApproveProduct(viewProductModal.product._id);
-                  setViewProductModal({ show: false, product: null });
-                }}
-                style={{
-                  padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
-                  color: '#fff', backgroundColor: '#16a34a',
-                  border: 'none', borderRadius: '10px', cursor: 'pointer',
-                  minWidth: '120px'
-                }}
-              >
-                Approve
-              </button>
-              <button
-                onClick={() => {
-                  handleRejectProduct(viewProductModal.product._id, viewProductModal.product.name);
-                  setViewProductModal({ show: false, product: null });
-                }}
-                style={{
-                  padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
-                  color: '#dc2626', backgroundColor: '#fff',
-                  border: '1.5px solid #dc2626', borderRadius: '10px', cursor: 'pointer',
-                  minWidth: '120px'
-                }}
-              >
-                Reject
-              </button>
+      {/* ── Add Store Modal ── */}
+      <AddStoreModal
+        isOpen={showAddStore}
+        onClose={() => setShowAddStore(false)}
+        onAdd={addStore}
+      />
+    </div>
+  );
+}
+
+// ── Supporting Components ───────────────────────────
+
+interface AddStoreModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onAdd: (data: any) => Promise<boolean>;
+}
+
+function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
+  const [form, setForm] = useState({ name: '', address: '', lat: '', lng: '', image: '', peakHours: '', offPeakHours: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const newFieldErrors: Record<string, boolean> = {};
+
+    if (!form.image.trim()) newFieldErrors.image = true;
+    if (!form.name.trim()) newFieldErrors.name = true;
+    if (!form.address.trim()) newFieldErrors.address = true;
+    if (!form.lat) newFieldErrors.lat = true;
+    if (!form.lng) newFieldErrors.lng = true;
+
+    if (Object.keys(newFieldErrors).length > 0) {
+      setFieldErrors(newFieldErrors);
+      return;
+    }
+
+    setSubmitting(true);
+    const ok = await onAdd({
+      name: form.name.trim(),
+      address: form.address.trim(),
+      lat: parseFloat(form.lat),
+      lng: parseFloat(form.lng),
+      image: form.image.trim(),
+      peakHours: form.peakHours ? form.peakHours.split(',').map(s => s.trim()) : [],
+      offPeakHours: form.offPeakHours ? form.offPeakHours.split(',').map(s => s.trim()) : []
+    });
+    setSubmitting(false);
+    if (ok) {
+      toast.success('Store added successfully!');
+      onClose();
+      setForm({ name: '', address: '', lat: '', lng: '', image: '', peakHours: '', offPeakHours: '' });
+      setFieldErrors({});
+    } else {
+      toast.error('Failed to add store.');
+    }
+  };
+
+  const inputStyle = (field: string) => ({
+    width: '100%', padding: '10px 14px', fontSize: '0.875rem',
+    border: `1px solid ${fieldErrors[field] ? '#dc2626' : '#e5e7eb'}`,
+    borderRadius: '10px', outline: 'none', boxSizing: 'border-box' as const,
+    backgroundColor: fieldErrors[field] ? '#fef2f2' : '#f9fafb',
+    transition: 'all 0.2s'
+  });
+
+  return (
+    <>
+      <div
+        style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', zIndex: 1200 }}
+        onClick={onClose}
+      />
+      <div
+        style={{
+          position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+          backgroundColor: '#fff', borderRadius: '20px', padding: '0',
+          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', zIndex: 1201,
+          width: '90%', maxWidth: '540px', maxHeight: '90vh',
+          display: 'flex', flexDirection: 'column', overflow: 'hidden'
+        }}
+      >
+        <div style={{ padding: '24px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Add Store</h3>
+            <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>Create a new store location</p>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}
+          >
+            <X style={{ width: 20, height: 20 }} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} noValidate style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+              Image URL <span style={{ color: '#8B1538' }}>*</span>
+            </label>
+            <input
+              type="text" value={form.image}
+              onChange={e => {
+                setForm({ ...form, image: e.target.value });
+                if (e.target.value.trim()) setFieldErrors(prev => ({ ...prev, image: false }));
+              }}
+              placeholder="https://example.com/store.jpg"
+              style={inputStyle('image')}
+            />
+            {fieldErrors.image && <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>This field is required!</p>}
+
+            <div style={{ marginTop: '12px', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden', height: '140px', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img
+                src={form.image.trim() || 'https://placehold.co/400x400?text=No+Image+Available'}
+                alt="Preview"
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=Invalid+Image+Link')}
+              />
             </div>
           </div>
-        </>
-      )}
-    </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+              Store Name <span style={{ color: '#8B1538' }}>*</span>
+            </label>
+            <input
+              type="text" value={form.name}
+              onChange={e => {
+                setForm({ ...form, name: e.target.value });
+                if (e.target.value.trim()) setFieldErrors(prev => ({ ...prev, name: false }));
+              }}
+              placeholder="e.g. Savemore Market"
+              style={inputStyle('name')}
+            />
+            {fieldErrors.name && <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>This field is required!</p>}
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+              Address <span style={{ color: '#8B1538' }}>*</span>
+            </label>
+            <input
+              type="text" value={form.address}
+              onChange={e => {
+                setForm({ ...form, address: e.target.value });
+                if (e.target.value.trim()) setFieldErrors(prev => ({ ...prev, address: false }));
+              }}
+              placeholder="Store branch / full address"
+              style={inputStyle('address')}
+            />
+            {fieldErrors.address && <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>This field is required!</p>}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+                Latitude <span style={{ color: '#8B1538' }}>*</span>
+              </label>
+              <input
+                type="number" step="any" value={form.lat}
+                onChange={e => {
+                  setForm({ ...form, lat: e.target.value });
+                  if (e.target.value) setFieldErrors(prev => ({ ...prev, lat: false }));
+                }}
+                placeholder="14.XXX"
+                style={inputStyle('lat')}
+              />
+              {fieldErrors.lat && <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>This field is required!</p>}
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+                Longitude <span style={{ color: '#8B1538' }}>*</span>
+              </label>
+              <input
+                type="number" step="any" value={form.lng}
+                onChange={e => {
+                  setForm({ ...form, lng: e.target.value });
+                  if (e.target.value) setFieldErrors(prev => ({ ...prev, lng: false }));
+                }}
+                placeholder="121.XXX"
+                style={inputStyle('lng')}
+              />
+              {fieldErrors.lng && <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>This field is required!</p>}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>Peak Hours (comma separated)</label>
+            <input
+              type="text" value={form.peakHours}
+              onChange={e => setForm({ ...form, peakHours: e.target.value })}
+              placeholder="e.g. 10 AM - 12 PM, 5 PM - 7 PM"
+              style={inputStyle('peakHours')}
+            />
+          </div>
+
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>Off-Peak Hours (comma separated)</label>
+            <input
+              type="text" value={form.offPeakHours}
+              onChange={e => setForm({ ...form, offPeakHours: e.target.value })}
+              placeholder="e.g. 1 PM - 3 PM"
+              style={inputStyle('offPeakHours')}
+            />
+          </div>
+
+          <div style={{ margin: '0 -24px', padding: '4px 24px', display: 'flex', gap: '12px' }}>
+            <button
+              type="button" onClick={onClose}
+              style={{ flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600, color: '#374151', backgroundColor: '#fff', border: '1.5px solid #e5e7eb', borderRadius: '10px', cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit" disabled={submitting}
+              style={{ flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 700, color: '#fff', backgroundColor: submitting ? '#c084a0' : '#8B1538', border: 'none', borderRadius: '10px', cursor: submitting ? 'not-allowed' : 'pointer' }}
+            >
+              {submitting ? 'Adding Store...' : 'Add Store'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
   );
 }

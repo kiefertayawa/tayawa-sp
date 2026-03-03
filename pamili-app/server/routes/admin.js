@@ -39,7 +39,7 @@ router.get('/stats', auth, async (req, res) => {
   try {
     const [
       pendingProducts, approvedProducts, rejectedProducts,
-      pendingReviews, approvedReviews, rejectedReviews
+      pendingReviews, approvedReviews, rejectedReviews, totalStores
     ] = await Promise.all([
       Product.countDocuments({ status: 'pending' }),
       Product.countDocuments({ status: 'approved' }),
@@ -47,10 +47,12 @@ router.get('/stats', auth, async (req, res) => {
       Review.countDocuments({ status: 'pending' }),
       Review.countDocuments({ status: 'approved' }),
       Review.countDocuments({ status: 'rejected' }),
+      Store.countDocuments(),
     ]);
     res.json({
       success: true,
       data: {
+        totalStores,
         pendingProducts,
         approvedProducts,
         rejectedProducts,
@@ -198,6 +200,54 @@ router.patch('/reviews/:id/reject', auth, async (req, res) => {
     );
     if (!review) return res.status(404).json({ success: false, error: 'Not found' });
     res.json({ success: true, data: review });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── Store Management ────────────────────────────────
+// POST /api/admin/stores
+router.post('/stores', auth, async (req, res) => {
+  try {
+    const { name, address, lat, lng, image, peakHours, offPeakHours } = req.body;
+
+    if (!name || !address || lat === undefined || lng === undefined) {
+      return res.status(400).json({ success: false, error: 'Name, address, lat, and lng are required' });
+    }
+
+    const store = await Store.create({
+      name,
+      address,
+      location: { lat: parseFloat(lat), lng: parseFloat(lng) },
+      image: image || '',
+      peakHours: peakHours || [],
+      offPeakHours: offPeakHours || [],
+      rating: 0,
+      reviewCount: 0,
+      crowdLevel: 'low'
+    });
+
+    res.status(201).json({ success: true, data: store });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/admin/stores/:id
+router.delete('/stores/:id', auth, async (req, res) => {
+  try {
+    const store = await Store.findByIdAndDelete(req.params.id);
+    if (!store) {
+      return res.status(404).json({ success: false, error: 'Store not found' });
+    }
+
+    // Also delete associated products and reviews
+    await Promise.all([
+      Product.deleteMany({ 'prices.storeId': req.params.id }),
+      Review.deleteMany({ storeId: req.params.id })
+    ]);
+
+    res.json({ success: true, data: {} });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
