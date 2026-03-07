@@ -100,6 +100,7 @@ export default function AdminPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
 
   // Confirmation Modal State
@@ -149,7 +150,9 @@ export default function AdminPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoggingIn(true);
     const ok = await login(username, password);
+    setIsLoggingIn(false);
     if (!ok) {
       toast.error('Login failed. Please check your credentials!');
     } else {
@@ -288,14 +291,28 @@ export default function AdminPage() {
 
             <button
               type="submit"
+              disabled={isLoggingIn}
               style={{
                 width: '100%', padding: '12px',
                 fontSize: '0.875rem', fontWeight: 600,
                 color: '#fff', backgroundColor: '#8B1538',
-                border: 'none', borderRadius: '10px', cursor: 'pointer',
+                border: 'none', borderRadius: '10px',
+                cursor: isLoggingIn ? 'not-allowed' : 'pointer',
+                opacity: isLoggingIn ? 0.7 : 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
               }}
             >
-              Login
+              {isLoggingIn ? (
+                <>
+                  <div style={{
+                    width: '16px', height: '16px',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderTopColor: '#fff', borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }} />
+                  Logging in...
+                </>
+              ) : 'Login'}
             </button>
           </form>
         </div>
@@ -1252,9 +1269,25 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
             </button>
             <button
               type="submit" disabled={submitting}
-              style={{ flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 700, color: '#fff', backgroundColor: submitting ? '#c084a0' : '#8B1538', border: 'none', borderRadius: '10px', cursor: submitting ? 'not-allowed' : 'pointer' }}
+              style={{
+                flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 700,
+                color: '#fff', backgroundColor: '#8B1538', border: 'none', borderRadius: '10px',
+                cursor: submitting ? 'not-allowed' : 'pointer',
+                opacity: submitting ? 0.7 : 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+              }}
             >
-              {submitting ? 'Adding Store...' : 'Add Store'}
+              {submitting ? (
+                <>
+                  <div style={{
+                    width: '16px', height: '16px',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderTopColor: '#fff', borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }} />
+                  Adding Store...
+                </>
+              ) : 'Add Store'}
             </button>
           </div>
         </form>

@@ -451,18 +451,24 @@ export default function SubmitProductForm({ isOpen, onClose }: SubmitProductForm
                 type="submit"
                 disabled={submitting}
                 style={{
-                  flex: 1,
-                  padding: '12px',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#fff',
-                  backgroundColor: submitting ? '#c084a0' : '#8B1538',
-                  border: 'none',
-                  borderRadius: '10px',
+                  flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600,
+                  color: '#fff', backgroundColor: '#8B1538', border: 'none', borderRadius: '10px',
                   cursor: submitting ? 'not-allowed' : 'pointer',
+                  opacity: submitting ? 0.7 : 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                 }}
               >
-                {submitting ? 'Submitting...' : 'Submit'}
+                {submitting ? (
+                  <>
+                    <div style={{
+                      width: '16px', height: '16px',
+                      border: '2px solid rgba(255,255,255,0.3)',
+                      borderTopColor: '#fff', borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }} />
+                    Submitting...
+                  </>
+                ) : 'Submit'}
               </button>
             </div>
           </form>

@@ -309,11 +309,23 @@ export default function ReviewsSection({ storeId, storeName, helpText }: Reviews
                 style={{
                   width: '140px', height: '46px', boxSizing: 'border-box',
                   fontSize: '0.9rem', fontWeight: 700, color: '#fff',
-                  backgroundColor: submitting ? '#c084a0' : '#8B1538',
-                  border: 'none', borderRadius: '10px', cursor: submitting ? 'not-allowed' : 'pointer'
+                  backgroundColor: '#8B1538', border: 'none', borderRadius: '10px',
+                  cursor: submitting ? 'not-allowed' : 'pointer',
+                  opacity: submitting ? 0.7 : 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                 }}
               >
-                {submitting ? 'Submitting...' : 'Submit Review'}
+                {submitting ? (
+                  <>
+                    <div style={{
+                      width: '16px', height: '16px',
+                      border: '2px solid rgba(255,255,255,0.3)',
+                      borderTopColor: '#fff', borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }} />
+                    Submitting...
+                  </>
+                ) : 'Submit Review'}
               </button>
             </div>
           </form>

@@ -5,6 +5,7 @@ import { ShoppingCart, Search, Upload, LogOut, X } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { productService } from '../../services/api';
+import { toast } from 'sonner';
 
 interface HeaderProps {
   onCartClick: () => void;
@@ -297,7 +298,10 @@ export default function Header({ onCartClick, onSubmitClick }: HeaderProps) {
 
         {isAdmin && isAdminRoute && (
           <button
-            onClick={logout}
+            onClick={() => {
+              logout();
+              toast.success('Successfully logged out!');
+            }}
             style={{
               display: 'flex', alignItems: 'center', gap: '8px',
               padding: '9px 18px',
