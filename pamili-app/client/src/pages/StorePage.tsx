@@ -133,7 +133,7 @@ export default function StorePage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
             <Star style={{ width: 16, height: 16, fill: '#facc15', color: '#facc15' }} />
             <span style={{ fontWeight: 600, color: '#111827', fontSize: '0.95rem' }}>{store.rating}</span>
-            <span style={{ color: '#9ca3af', fontSize: '0.875rem' }}>({store.reviewCount} reviews)</span>
+            <span style={{ color: '#9ca3af', fontSize: '0.875rem' }}>({store.reviewCount} {store.reviewCount <= 1 ? 'review' : 'reviews'})</span>
           </div>
 
         </div>

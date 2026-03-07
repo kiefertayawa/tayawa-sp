@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Star, Package, LogIn, Eye, EyeOff, CheckCircle, X, User, Plus, MapPin } from 'lucide-react';
+import { Star, Package, Eye, EyeOff, CheckCircle, X, User, Plus, MapPin, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap, CircleMarker } from 'react-leaflet';
 import L from 'leaflet';
@@ -234,10 +234,9 @@ export default function AdminPage() {
                 margin: '0 auto 14px',
               }}
             >
-              <LogIn style={{ width: 24, height: 24, color: '#8B1538' }} />
+              <User style={{ width: 24, height: 24, color: '#8B1538' }} />
             </div>
             <h1 style={{ fontWeight: 700, fontSize: '1.25rem', color: '#111827', marginBottom: '4px' }}>Admin Login</h1>
-            <p style={{ fontSize: '0.875rem', color: '#9ca3af', margin: 0 }}>PAMILI Dashboard</p>
           </div>
 
           <form onSubmit={handleLogin}>
@@ -916,8 +915,33 @@ export default function AdminPage() {
                     </div>
                     <div style={{ gridColumn: 'span 2' }}>
                       <div style={{ height: '1px', backgroundColor: '#f3f4f6', margin: '4px 0 16px' }} />
+                    </div>
+                    <div>
                       <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Submitted By</p>
                       <p style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111827', margin: 0 }}>Anonymous User</p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Crowd Level reported</p>
+                      <div style={{ marginTop: '2px' }}>
+                        {(() => {
+                          const lvl = viewProductModal.product.crowdLevel;
+                          if (!lvl || lvl === 'not_sure') return <span style={{ fontSize: '0.85rem', color: '#6b7280', fontStyle: 'italic' }}>Not Sure</span>;
+                          const config = crowdConfig[lvl as 'low' | 'medium' | 'high'];
+                          if (!config) return <span style={{ fontSize: '0.85rem', color: '#6b7280', fontStyle: 'italic' }}>Not Sure</span>;
+                          return (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '4px',
+                              fontSize: '0.72rem', fontWeight: 700,
+                              color: config.color,
+                              backgroundColor: config.bg,
+                              borderRadius: '999px', padding: '3px 10px',
+                            }}>
+                              <Users style={{ width: 12, height: 12 }} />
+                              {config.label}
+                            </span>
+                          );
+                        })()}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -993,18 +1017,10 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
 
   // Automatically pick current location on open
   useEffect(() => {
-    if (isOpen && !form.lat && !form.lng) {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const lat = pos.coords.latitude.toFixed(6);
-            const lng = pos.coords.longitude.toFixed(6);
-            setForm(f => ({ ...f, lat, lng }));
-          },
-          () => { },
-          { enableHighAccuracy: true }
-        );
-      }
+    if (isOpen) {
+      // We purposefully do NOT auto-fill the store location with the user's 
+      // current location to ensure the admin explicitly drops a pin.
+      // The LocationPicker handles showing the user's blue dot separately.
     }
   }, [isOpen]);
 

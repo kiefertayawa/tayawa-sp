@@ -241,7 +241,7 @@ export const adminService = {
     }>>('/admin/stats');
   },
 
-  addStore: (data: { name: string; address: string; lat: number; lng: number; image: string; peakHours?: string[]; offPeakHours?: string[] }) => {
+  addStore: (data: { name: string; address: string; lat: number; lng: number; image: string; peakHours?: string; offPeakHours?: string }) => {
     if (USE_MOCK) {
       const store: Store = {
         _id: `store-${Date.now()}`,
@@ -249,11 +249,11 @@ export const adminService = {
         address: data.address,
         location: { lat: data.lat, lng: data.lng },
         image: data.image,
-        peakHours: data.peakHours || [],
-        offPeakHours: data.offPeakHours || [],
+        peakHours: data.peakHours || '',
+        offPeakHours: data.offPeakHours || '',
         rating: 0,
         reviewCount: 0,
-        crowdLevel: 'low'
+        lastCrowdLevel: 'low'
       };
       return mockResponse(store);
     }

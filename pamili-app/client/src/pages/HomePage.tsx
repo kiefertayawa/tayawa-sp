@@ -400,7 +400,7 @@ function StoreCard({ store, onClick }: { store: Store; onClick: () => void }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '12px' }}>
           <Star style={{ width: 15, height: 15, fill: '#facc15', color: '#facc15' }} />
           <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>{store.rating}</span>
-          <span style={{ fontSize: '0.85rem', color: '#9ca3af' }}>({store.reviewCount} reviews)</span>
+          <span style={{ fontSize: '0.85rem', color: '#9ca3af' }}>({store.reviewCount} {store.reviewCount <= 1 ? 'review' : 'reviews'})</span>
         </div>
 
         {/* Shopping Hours */}

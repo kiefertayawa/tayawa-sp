@@ -3,7 +3,7 @@
 // Admin authentication via JWT. Token stored in localStorage.
 // ============================================================
 
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { adminService } from '../services/api';
 
 interface AuthState {
@@ -18,11 +18,49 @@ interface AuthContextValue extends AuthState {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function parseJwt(token: string) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
     isAdmin: !!localStorage.getItem('pamili_token'),
     token: localStorage.getItem('pamili_token'),
   });
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('pamili_token');
+    setState({ isAdmin: false, token: null });
+  }, []);
+
+  // Sync state with token expiration
+  useEffect(() => {
+    const token = localStorage.getItem('pamili_token');
+    if (!token) return;
+
+    const payload = parseJwt(token);
+    if (!payload || !payload.exp) {
+      logout();
+      return;
+    }
+
+    const expiresMs = payload.exp * 1000 - Date.now();
+    if (expiresMs <= 0) {
+      logout(); // Token already expired
+    } else {
+      const timer = setTimeout(() => {
+        logout();
+      }, expiresMs);
+      return () => clearTimeout(timer);
+    }
+  }, [state.token, logout]);
 
   const login = useCallback(async (username: string, password: string) => {
     try {
@@ -34,11 +72,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       return false;
     }
-  }, []);
-
-  const logout = useCallback(() => {
-    localStorage.removeItem('pamili_token');
-    setState({ isAdmin: false, token: null });
   }, []);
 
   return (
