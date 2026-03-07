@@ -10,6 +10,8 @@ const storeSchema = new mongoose.Schema({
   peakHours: [String],
   offPeakHours: [String],
   image: { type: String, default: '' },
+  lastCrowdLevel: { type: String, enum: ['low', 'medium', 'high'] },
+  lastCrowdTime: { type: Date },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Store', storeSchema);

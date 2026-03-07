@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { MapPin } from 'lucide-react';
+import { toast } from 'sonner';
 import type { Store as StoreType } from '../../types';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -19,17 +21,70 @@ const crowdColor: Record<string, string> = {
     high: '#dc2626',
 };
 
+// ─── help determine status dynamically ──────────────────────
+function parseMin(s: string) {
+    const str = s.trim().toUpperCase().replace(/\s+/g, '');
+    const m12 = str.match(/^(\d{1,2})(?::(\d{2}))?(AM|PM)$/);
+    if (m12) {
+        let h = parseInt(m12[1], 10);
+        const min = m12[2] ? parseInt(m12[2], 10) : 0;
+        const ampm = m12[3];
+        if (ampm === 'PM' && h !== 12) h += 12;
+        if (ampm === 'AM' && h === 12) h = 0;
+        return h * 60 + min;
+    }
+    const m24 = str.match(/^(\d{1,2})(?::(\d{2}))?$/);
+    if (m24) {
+        const h = parseInt(m24[1], 10);
+        const min = m24[2] ? parseInt(m24[2], 10) : 0;
+        if (h >= 0 && h < 24) return h * 60 + min;
+    }
+    return -1;
+}
+
+function getLiveCrowdStatus(store: StoreType): 'low' | 'medium' | 'high' {
+    const now = new Date();
+    const cur = now.getHours() * 60 + now.getMinutes();
+
+    // 1. Reality Check (The Live Pulse)
+    if (store.lastCrowdLevel && store.lastCrowdLevel !== 'not_sure' && store.lastCrowdTime) {
+        const reportTime = new Date(store.lastCrowdTime);
+        const diffInMinutes = (now.getTime() - reportTime.getTime()) / (1000 * 60);
+        if (diffInMinutes >= 0 && diffInMinutes < 60) {
+            return store.lastCrowdLevel as 'low' | 'medium' | 'high';
+        }
+    }
+
+    // 2. Expectation Check (The Historical Pattern)
+    const isCurrent = (slot: string) => {
+        const parts = slot.split(/\s*[–\-\/tToO]+\s*/);
+        if (parts.length < 2) return false;
+        let sStr = parts[0].trim(), eStr = parts[1].trim();
+        if (/[AP]M$/i.test(eStr) && !/[AP]M$/i.test(sStr)) {
+            const suffix = eStr.slice(-2).toUpperCase();
+            const endH = parseInt(eStr.split(':')[0], 10);
+            const startH = parseInt(sStr.split(':')[0], 10);
+            const sSuffix = (startH === 11 && endH === 12) ? (suffix === 'PM' ? 'AM' : 'PM') : suffix;
+            sStr += sSuffix;
+        }
+        const sVal = parseMin(sStr), eVal = parseMin(eStr);
+        if (sVal < 0 || eVal < 0) return false;
+        if (sVal < eVal) return cur >= sVal && cur < eVal;
+        return cur >= sVal || cur < eVal;
+    };
+    if (store.peakHours?.some(isCurrent)) return 'high';
+    if (store.offPeakHours?.some(isCurrent)) return 'low';
+    return 'medium';
+}
+
 // ── Build search pin icon ─────────────────────────────────────────────────────
-// The label (price) is embedded directly in the HTML.
-// Hover is pure CSS — no React state → no other markers shifting.
-// Highlighted state uses a different CSS class injected via HTML class attribute.
 function buildSearchIcon(color: string, price: number, highlighted: boolean) {
     const cls = highlighted ? 'pamili-search-pin highlighted' : 'pamili-search-pin';
     const labelBg = highlighted ? '#8B1538' : '#111827';
     return L.divIcon({
         className: '',
-        iconSize: [10, 58],    // fixed — never changes on hover
-        iconAnchor: [5, 58],   // bottom-center anchored at pin tip
+        iconSize: [10, 58],
+        iconAnchor: [5, 58],
         html: `
       <div class="${cls}" data-color="${color}">
         <div class="pamili-search-label" style="background:${labelBg};">&#8369;${price.toFixed(2)}</div>
@@ -43,46 +98,6 @@ function buildSearchIcon(color: string, price: number, highlighted: boolean) {
     });
 }
 
-function UserLocationMarker() {
-    const [position, setPosition] = useState<[number, number] | null>(null);
-    const map = useMap();
-
-    useEffect(() => {
-        if (!navigator.geolocation) return;
-
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                const coords: [number, number] = [
-                    pos.coords.latitude,
-                    pos.coords.longitude,
-                ];
-
-                setPosition(coords);
-            }
-        );
-    }, []);
-
-    if (!position) return null;
-
-    return (
-        <Marker
-            position={position}
-            icon={L.divIcon({
-                className: '',
-                html: `<div style="
-          width:16px;
-          height:16px;
-          background:#2563eb;
-          border-radius:50%;
-          border:3px solid white;
-        "></div>`,
-                iconSize: [16, 16],
-                iconAnchor: [8, 8],
-            })}
-        />
-    );
-}
-
 // ── Pan to a lat/lng target ───────────────────────────────────────────────────
 function MapController({ target }: { target: [number, number] | null }) {
     const map = useMap();
@@ -92,17 +107,85 @@ function MapController({ target }: { target: [number, number] | null }) {
     return null;
 }
 
-// ── Fly to user's real GPS on first load ─────────────────────────────────────
-function GeoLocator() {
+// ── Manual GPS Locator ────────────────────────────────────────────────────────
+function GeoLocator({ userPos, onLocate }: { userPos: [number, number] | null; onLocate: (pos: [number, number]) => void }) {
     const map = useMap();
+
+    // Background fetch on mount
     useEffect(() => {
         if (!navigator.geolocation) return;
         navigator.geolocation.getCurrentPosition(
-            (pos) => map.flyTo([pos.coords.latitude, pos.coords.longitude], 17, { duration: 1.2 }),
+            (pos) => onLocate([pos.coords.latitude, pos.coords.longitude]),
             () => { },
-            { timeout: 6000 },
+            { timeout: 5000 }
         );
-    }, [map]);
+    }, [onLocate]);
+
+    return (
+        <button
+            type="button"
+            onClick={() => {
+                if (userPos) {
+                    map.flyTo(userPos, 17, { duration: 1.2 });
+                }
+
+                map.locate({ enableHighAccuracy: true });
+                map.once('locationfound', (e) => {
+                    const coords: [number, number] = [e.latlng.lat, e.latlng.lng];
+                    onLocate(coords);
+                    map.flyTo(e.latlng, 17, { duration: 1.2 });
+                });
+                map.once('locationerror', (err) => {
+                    toast.error("Could not find your location: " + err.message);
+                });
+            }}
+            style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                zIndex: 500,
+                backgroundColor: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '8px',
+                cursor: 'pointer',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+            }}
+            title="Locate Me"
+        >
+            <MapPin style={{ width: 18, height: 18, color: '#8B1538' }} />
+        </button>
+    );
+}
+
+function FitBounds({ pins }: { pins: { store: StoreType; price: number }[] }) {
+    const map = useMap();
+
+    const handleFit = useCallback(() => {
+        if (!pins.length) return;
+        const bounds = L.latLngBounds(pins.map(p => [p.store.location.lat, p.store.location.lng]));
+        map.fitBounds(bounds, { padding: [50, 50] });
+    }, [pins, map]);
+
+    // Initial Fit
+    useEffect(() => {
+        handleFit();
+    }, [handleFit]);
+
+    // Visibility Reset
+    useEffect(() => {
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') {
+                handleFit();
+            }
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => document.removeEventListener('visibilitychange', onVisible);
+    }, [handleFit]);
+
     return null;
 }
 
@@ -112,23 +195,9 @@ interface SearchMapProps {
     highlightedStoreId?: string | null;
 }
 
-function FitBounds({ pins }: { pins: any[] }) {
-    const map = useMap();
-
-    useEffect(() => {
-        if (!pins.length) return;
-
-        const bounds = L.latLngBounds(
-            pins.map(p => [p.store.location.lat, p.store.location.lng])
-        );
-
-        map.fitBounds(bounds, { padding: [50, 50] });
-    }, [pins, map]);
-
-    return null;
-}
-
 export default function SearchMap({ pins, onStoreClick, highlightedStoreId }: SearchMapProps) {
+    const [userPos, setUserPos] = useState<[number, number] | null>(null);
+
     const panTarget = (() => {
         if (!highlightedStoreId) return null;
         const pin = pins.find(p => p.store._id === highlightedStoreId);
@@ -147,24 +216,46 @@ export default function SearchMap({ pins, onStoreClick, highlightedStoreId }: Se
                 url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                 maxZoom={19}
             />
-            <GeoLocator />
+            <GeoLocator userPos={userPos} onLocate={setUserPos} />
             <MapController target={panTarget} />
             <FitBounds pins={pins} />
-            <UserLocationMarker />
 
-            {pins.map(({ store, price }) => (
+            {userPos && (
                 <Marker
-                    key={store._id}
-                    position={[store.location.lat, store.location.lng]}
-                    icon={buildSearchIcon(
-                        crowdColor[store.crowdLevel] ?? '#8B1538',
-                        price,
-                        highlightedStoreId === store._id,
-                    )}
-                    zIndexOffset={highlightedStoreId === store._id ? 1000 : 0}
-                    eventHandlers={{ click: () => onStoreClick(store._id) }}
+                    position={userPos}
+                    icon={L.divIcon({
+                        className: '',
+                        html: `<div style="
+                            width:16px;
+                            height:16px;
+                            background:#2563eb;
+                            border-radius:50%;
+                            border:3px solid white;
+                            box-shadow: 0 0 10px rgba(37,99,235,0.5);
+                        "></div>`,
+                        iconSize: [16, 16],
+                        iconAnchor: [8, 8],
+                    })}
                 />
-            ))}
+            )}
+
+            {pins.map(({ store, price }) => {
+                const status = getLiveCrowdStatus(store);
+                const color = crowdColor[status] ?? '#8B1538';
+                return (
+                    <Marker
+                        key={store._id}
+                        position={[store.location.lat, store.location.lng]}
+                        icon={buildSearchIcon(
+                            color,
+                            price,
+                            highlightedStoreId === store._id,
+                        )}
+                        zIndexOffset={highlightedStoreId === store._id ? 1000 : 0}
+                        eventHandlers={{ click: () => onStoreClick(store._id) }}
+                    />
+                );
+            })}
         </MapContainer>
     );
 }

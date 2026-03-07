@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Link as LinkIcon } from 'lucide-react';
+import { X, Link as LinkIcon, Users, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { productService, storeService } from '../../../services/api';
 import type { Store } from '../../../types';
@@ -13,7 +13,9 @@ const DEFAULT_IMAGE = 'https://placehold.co/400x400?text=No+Image+Available';
 
 export default function SubmitProductForm({ isOpen, onClose }: SubmitProductFormProps) {
   const [stores, setStores] = useState<Store[]>([]);
-  const [form, setForm] = useState({ productName: '', storeId: '', price: '', imageUrl: '' });
+  const [form, setForm] = useState({ productName: '', storeId: '', price: '', imageUrl: '', crowdLevel: 'not_sure' as 'low' | 'medium' | 'high' | 'not_sure' });
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
@@ -27,6 +29,29 @@ export default function SubmitProductForm({ isOpen, onClose }: SubmitProductForm
         .catch(() => {
           setError('Could not load stores. Is the backend running?');
         });
+
+      // Fetch location
+      if ("geolocation" in navigator) {
+        setLocating(true);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+            setLocating(false);
+          },
+          (err) => {
+            console.error("Location error", err);
+            // We no longer block submission, just notify that verification is unavailable
+            setLocating(false);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
+        );
+      } else {
+        setError("Your browser does not support geolocation. We cannot verify your location.");
+      }
     }
   }, [isOpen]);
 
@@ -72,15 +97,15 @@ export default function SubmitProductForm({ isOpen, onClose }: SubmitProductForm
         storeId: form.storeId,
         price: priceNum,
         image: form.imageUrl.trim() || DEFAULT_IMAGE,
+        lat: location?.lat,
+        lng: location?.lng,
+        crowdLevel: form.crowdLevel,
       });
-      const now = new Date();
-      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const dateStr = now.toLocaleDateString();
-
       toast.success('Product submitted for review!', {});
 
       onClose();
-      setForm({ productName: '', storeId: '', price: '', imageUrl: '' });
+      setForm({ productName: '', storeId: '', price: '', imageUrl: '', crowdLevel: 'not_sure' });
+      setLocation(null);
     } catch (err: any) {
       const msg = err?.response?.data?.error || 'Submission failed. Please check if the backend is running.';
       toast.error(msg);
@@ -304,6 +329,83 @@ export default function SubmitProductForm({ isOpen, onClose }: SubmitProductForm
                   <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>This field is required!</p>
                 )}
                 <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>Enter the exact price you saw at the store</p>
+              </div>
+
+              {/* Crowd Level */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
+                  How is the crowd level right now? <span style={{ color: '#8B1538' }}>*</span>
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                  {(['low', 'medium', 'high', 'not_sure'] as const).map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => setForm({ ...form, crowdLevel: level })}
+                      style={{
+                        padding: '12px 8px',
+                        fontSize: '0.8125rem',
+                        fontWeight: 600,
+                        textTransform: 'capitalize',
+                        borderRadius: '10px',
+                        border: '2px solid',
+                        borderColor: form.crowdLevel === level ? '#8B1538' : '#e5e7eb',
+                        backgroundColor: form.crowdLevel === level ? '#fdf2f5' : '#fff',
+                        color: form.crowdLevel === level ? '#8B1538' : '#6b7280',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px',
+                        transition: 'all 0.2s',
+                        height: '60px'
+                      }}
+                    >
+                      {level === 'not_sure' ? (
+                        <span style={{ fontSize: '0.75rem' }}>Don't Know</span>
+                      ) : (
+                        <>
+                          <Users style={{ width: 16, height: 16, opacity: form.crowdLevel === level ? 1 : 0.6 }} />
+                          {level === 'medium' ? 'Moderate' : level === 'high' ? 'Busy' : 'Low'}
+                        </>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Geofencing Status */}
+              <div style={{
+                marginBottom: '16px',
+                padding: '12px',
+                backgroundColor: location ? '#f0fdf4' : '#fff7ed',
+                borderRadius: '10px',
+                border: `1px solid ${location ? '#bbf7d0' : '#ffedd5'}`,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
+              }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  backgroundColor: location ? '#dcfce7' : '#ffedd5',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: location ? '#166534' : '#9a3412'
+                }}>
+                  <MapPin style={{ width: 16, height: 16 }} />
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: '0.8125rem', fontWeight: 600, color: location ? '#166534' : '#9a3412' }}>
+                    {locating ? 'Verifying location...' : location ? 'Location Verified' : 'Location Not Provided'}
+                  </p>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: location ? '#15803d' : '#c2410c' }}>
+                    {location ? 'Your crowd level report will help others!' : 'Only verified entries affect store peak hours.'}
+                  </p>
+                </div>
               </div>
 
               {/* Guidelines */}

@@ -4,10 +4,66 @@ import { useStore } from '../hooks';
 import ReviewsSection from '../components/features/store/ReviewsSection';
 
 const crowdConfig = {
-  low: { color: '#16a34a', bg: '#dcfce7', label: 'Low Traffic' },
-  medium: { color: '#d97706', bg: '#fef3c7', label: 'Moderate Traffic' },
+  low: { color: '#16a34a', bg: '#dcfce7', label: 'Low' },
+  medium: { color: '#d97706', bg: '#fef3c7', label: 'Moderate' },
   high: { color: '#dc2626', bg: '#fee2e2', label: 'Busy' },
 };
+
+// ─── help determine status dynamically ──────────────────────
+function parseMin(s: string) {
+  const str = s.trim().toUpperCase().replace(/\s+/g, '');
+  const m12 = str.match(/^(\d{1,2})(?::(\d{2}))?(AM|PM)$/);
+  if (m12) {
+    let h = parseInt(m12[1], 10);
+    const min = m12[2] ? parseInt(m12[2], 10) : 0;
+    const ampm = m12[3];
+    if (ampm === 'PM' && h !== 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    return h * 60 + min;
+  }
+  const m24 = str.match(/^(\d{1,2})(?::(\d{2}))?$/);
+  if (m24) {
+    const h = parseInt(m24[1], 10);
+    const min = m24[2] ? parseInt(m24[2], 10) : 0;
+    if (h >= 0 && h < 24) return h * 60 + min;
+  }
+  return -1;
+}
+
+function getLiveCrowdStatus(store: any): 'low' | 'medium' | 'high' {
+  const now = new Date();
+  const cur = now.getHours() * 60 + now.getMinutes();
+
+  // 1. Reality Check (The Live Pulse)
+  if (store.lastCrowdLevel && store.lastCrowdLevel !== 'not_sure' && store.lastCrowdTime) {
+    const reportTime = new Date(store.lastCrowdTime);
+    const diffInMinutes = (now.getTime() - reportTime.getTime()) / (1000 * 60);
+    if (diffInMinutes >= 0 && diffInMinutes < 60) {
+      return store.lastCrowdLevel as 'low' | 'medium' | 'high';
+    }
+  }
+
+  // 2. Expectation Check (The Historical Pattern)
+  const isCurrent = (slot: string) => {
+    const parts = slot.split(/\s*[–\-\/tToO]+\s*/);
+    if (parts.length < 2) return false;
+    let sStr = parts[0].trim(), eStr = parts[1].trim();
+    if (/[AP]M$/i.test(eStr) && !/[AP]M$/i.test(sStr)) {
+      const suffix = eStr.slice(-2).toUpperCase();
+      const endH = parseInt(eStr.split(':')[0], 10);
+      const startH = parseInt(sStr.split(':')[0], 10);
+      const sSuffix = (startH === 11 && endH === 12) ? (suffix === 'PM' ? 'AM' : 'PM') : suffix;
+      sStr += sSuffix;
+    }
+    const sVal = parseMin(sStr), eVal = parseMin(eStr);
+    if (sVal < 0 || eVal < 0) return false;
+    if (sVal < eVal) return cur >= sVal && cur < eVal;
+    return cur >= sVal || cur < eVal;
+  };
+  if (store.peakHours?.some(isCurrent)) return 'high';
+  if (store.offPeakHours?.some(isCurrent)) return 'low';
+  return 'medium';
+}
 
 export default function StorePage() {
   const { id } = useParams<{ id: string }>();
@@ -25,7 +81,8 @@ export default function StorePage() {
   }
   if (!store) return null;
 
-  const crowd = crowdConfig[store.crowdLevel] ?? crowdConfig.low;
+  const status = getLiveCrowdStatus(store);
+  const crowd = crowdConfig[status] ?? crowdConfig.medium;
 
   return (
     <div style={{ backgroundColor: '#f5f6fa', minHeight: '100vh' }}>

@@ -70,13 +70,22 @@ export const productService = {
     return api.get<ApiResponse<Product>>(`/products/${id}`);
   },
 
-  submit: (data: { name: string; storeId: string; price: number; image: string }) => {
+  submit: (data: {
+    name: string;
+    storeId: string;
+    price: number;
+    image: string;
+    lat?: number;
+    lng?: number;
+    crowdLevel?: 'low' | 'medium' | 'high' | 'not_sure';
+  }) => {
     if (USE_MOCK) {
       // Simulate a successful submission
       const pending: Product = {
         _id: `pend-${Date.now()}`,
         name: data.name,
         image: data.image,
+        crowdLevel: data.crowdLevel || 'low',
         prices: [{
           storeId: data.storeId,
           storeName: 'Unknown Store',
@@ -85,7 +94,7 @@ export const productService = {
           lastUpdated: new Date().toISOString().split('T')[0]
         }],
         submittedBy: 'Anonymous Student',
-        submittedDate: new Date().toISOString().split('T')[0],
+        submittedDate: new Date().toISOString(),
         status: 'pending',
       };
       return mockResponse(pending);

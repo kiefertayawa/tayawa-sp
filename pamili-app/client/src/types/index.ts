@@ -14,6 +14,7 @@ export interface Product {
   status?: 'pending' | 'approved' | 'rejected';
   submittedBy?: string;
   submittedDate?: string;
+  crowdLevel?: 'low' | 'medium' | 'high' | 'not_sure';
 }
 
 export interface PriceEntry {
@@ -40,6 +41,8 @@ export interface Store {
   peakHours: string[];
   offPeakHours: string[];
   image: string;
+  lastCrowdLevel?: 'low' | 'medium' | 'high' | 'not_sure';
+  lastCrowdTime?: string;
   createdAt?: string;
 }
 

@@ -92,6 +92,94 @@ router.patch('/products/:id/approve', auth, async (req, res) => {
       status: 'approved'
     });
 
+    // --- NEW: Aggregated Store Insights (Crowd Level & Peak Hours) ---
+    // Only aggregate if the user was near the store (locationVerified) and provided a level
+    if (pending.locationVerified && pending.crowdLevel && pending.crowdLevel !== 'not_sure') {
+      // Fetch ALL approved products for this store that are verified and have a crowd level
+      const allApprovedSubmissions = await Product.find({
+        'prices.storeId': submissionStore.storeId,
+        status: 'approved',
+        locationVerified: true,
+        crowdLevel: { $in: ['low', 'medium', 'high'] }
+      }).sort({ createdAt: -1 });
+
+      const allData = [pending, ...allApprovedSubmissions];
+
+      // 1. Calculate Current Crowd Level (Refined Logic)
+      const counts = { low: 0, medium: 0, high: 0 };
+      allData.forEach(d => counts[d.crowdLevel]++);
+
+      let currentCrowdLevel = 'medium'; // Default to Moderate
+
+      // Clear winner check
+      if (counts.high > counts.low && counts.high >= counts.medium) {
+        currentCrowdLevel = 'high';
+      } else if (counts.low > counts.high && counts.low >= counts.medium) {
+        currentCrowdLevel = 'low';
+      } else {
+        // If it's a tie between high/low, or medium is the majority, it's Moderate
+        currentCrowdLevel = 'medium';
+      }
+
+      // 2. Calculate Peak/Off-Peak (Recency-Based Community Data)
+      const hourCounts = { high: {}, low: {} };
+      const lastSeen = { high: {}, low: {} };
+
+      allData.forEach(d => {
+        if (d.crowdLevel === 'high' || d.crowdLevel === 'low') {
+          const date = new Date(d.submittedDate || d.createdAt);
+          const h = date.getHours();
+          const ts = date.getTime();
+
+          const startH = h % 12 || 12;
+          const endH = (h + 1) % 12 || 12;
+          const ampm = (h + 1) >= 12 && (h + 1) < 24 ? 'PM' : 'AM';
+          const range = `${startH}:00-${endH}:00${ampm}`;
+
+          hourCounts[d.crowdLevel][range] = (hourCounts[d.crowdLevel][range] || 0) + 1;
+          if (!lastSeen[d.crowdLevel][range] || ts > lastSeen[d.crowdLevel][range]) {
+            lastSeen[d.crowdLevel][range] = ts;
+          }
+        }
+      });
+
+      const getTopRange = (data, recencyData, exclude = null) => {
+        let keys = Object.keys(data);
+        if (exclude) keys = keys.filter(k => k !== exclude);
+        if (keys.length === 0) return null;
+
+        return keys.reduce((a, b) => {
+          if (data[a] > data[b]) return a;
+          if (data[b] > data[a]) return b;
+          // Tie-breaker: Recency
+          return recencyData[a] > recencyData[b] ? a : b;
+        });
+      };
+
+      const peakRange = getTopRange(hourCounts.high, lastSeen.high);
+      // Ensure off-peak is never the same as peak
+      const offPeakRange = getTopRange(hourCounts.low, lastSeen.low, peakRange);
+
+      // 3. Update Store (Safe Pulse Update)
+      const currentStore = await Store.findById(submissionStore.storeId);
+      const reportTime = pending.createdAt;
+
+      const storeUpdate = {
+        crowdLevel: currentCrowdLevel,
+        peakHours: peakRange ? [peakRange] : [],
+        offPeakHours: offPeakRange ? [offPeakRange] : []
+      };
+
+      // ONLY update the Live Snapshot if this report is newer than the stored one
+      if (!currentStore.lastCrowdTime || reportTime > currentStore.lastCrowdTime) {
+        storeUpdate.lastCrowdLevel = pending.crowdLevel;
+        storeUpdate.lastCrowdTime = reportTime;
+      }
+
+      await Store.findByIdAndUpdate(submissionStore.storeId, storeUpdate);
+    }
+    // -------------------------------------------------------------
+
     if (existingProduct) {
       // Logic: Merge the submission's price into the existing approved product
       const existingPriceIdx = existingProduct.prices.findIndex(

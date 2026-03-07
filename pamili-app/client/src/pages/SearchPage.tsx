@@ -12,8 +12,8 @@ import SearchMap from '../components/maps/SearchMap';
 
 // ─── crowd badge config (matches Store.crowdLevel) ────────────
 const crowdCfg: Record<string, { color: string; bg: string; label: string }> = {
-  low: { color: '#16a34a', bg: '#dcfce7', label: 'Low Traffic' },
-  medium: { color: '#d97706', bg: '#fef3c7', label: 'Moderate Traffic' },
+  low: { color: '#16a34a', bg: '#dcfce7', label: 'Low' },
+  medium: { color: '#d97706', bg: '#fef3c7', label: 'Moderate' },
   high: { color: '#dc2626', bg: '#fee2e2', label: 'Busy' },
 };
 
@@ -27,23 +27,71 @@ const DEFAULT: Filters = { crowdLevels: new Set(), openNow: false, sortBy: 'defa
 
 // ─── open-now helper ──────────────────────────────────────────
 function parseMin(s: string) {
-  const m = s.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i);
-  if (!m) return -1;
-  let h = parseInt(m[1], 10);
-  const min = parseInt(m[2], 10);
-  if (m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
-  if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
-  return h * 60 + min;
+  const str = s.trim().toUpperCase().replace(/\s+/g, '');
+
+  // Try 12-hour format: 9:00PM, 9PM, 09:30PM
+  const m12 = str.match(/^(\d{1,2})(?::(\d{2}))?(AM|PM)$/);
+  if (m12) {
+    let h = parseInt(m12[1], 10);
+    const min = m12[2] ? parseInt(m12[2], 10) : 0;
+    const ampm = m12[3];
+    if (ampm === 'PM' && h !== 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    return h * 60 + min;
+  }
+
+  // Try 24-hour format: 13:00, 09:00, or just 9, 21
+  const m24 = str.match(/^(\d{1,2})(?::(\d{2}))?$/);
+  if (m24) {
+    const h = parseInt(m24[1], 10);
+    const min = m24[2] ? parseInt(m24[2], 10) : 0;
+    if (h >= 0 && h < 24) return h * 60 + min;
+  }
+
+  return -1;
 }
+
+export function getLiveCrowdStatus(store: StoreType): 'low' | 'medium' | 'high' {
+  const now = new Date();
+  const cur = now.getHours() * 60 + now.getMinutes();
+
+  // 1. Reality Check (The Live Pulse)
+  // Check if we have a verified report from the last 60 minutes
+  if (store.lastCrowdLevel && store.lastCrowdLevel !== 'not_sure' && store.lastCrowdTime) {
+    const reportTime = new Date(store.lastCrowdTime);
+    const diffInMinutes = (now.getTime() - reportTime.getTime()) / (1000 * 60);
+    if (diffInMinutes >= 0 && diffInMinutes < 60) {
+      return store.lastCrowdLevel as 'low' | 'medium' | 'high';
+    }
+  }
+
+  // 2. Expectation Check (The Historical Pattern)
+  const isCurrent = (slot: string) => {
+    const parts = slot.split(/\s*[–\-\/tToO]+\s*/);
+    if (parts.length < 2) return false;
+    let sStr = parts[0].trim(), eStr = parts[1].trim();
+    if (/[AP]M$/i.test(eStr) && !/[AP]M$/i.test(sStr)) {
+      const suffix = eStr.slice(-2).toUpperCase();
+      const endH = parseInt(eStr.split(':')[0], 10);
+      const startH = parseInt(sStr.split(':')[0], 10);
+      const sSuffix = (startH === 11 && endH === 12) ? (suffix === 'PM' ? 'AM' : 'PM') : suffix;
+      sStr += sSuffix;
+    }
+    const s = parseMin(sStr), e = parseMin(eStr);
+    if (s < 0 || e < 0) return false;
+    if (s < e) return cur >= s && cur < e;
+    return cur >= s || cur < e; // Wraps midnight
+  };
+
+  if (store.peakHours?.some(isCurrent)) return 'high';
+  if (store.offPeakHours?.some(isCurrent)) return 'low';
+  return 'medium';
+}
+
 function isOpenNow(store: StoreType) {
-  const cur = new Date().getHours() * 60 + new Date().getMinutes();
-  const slots = [...store.peakHours, ...store.offPeakHours];
-  if (!slots.length) return true;
-  return slots.some(slot => {
-    const [a, b] = slot.split(/\s*[–\-]\s*/);
-    const s = parseMin(a), e = parseMin(b);
-    return s >= 0 && e >= 0 && cur >= s && cur <= e;
-  });
+  // If there are no peak/off-peak info at all, we assume it's open (legacy compatibility)
+  if (!store.peakHours?.length && !store.offPeakHours?.length) return true;
+  return true;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -381,7 +429,8 @@ export default function SearchPage() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {groups.map(({ storeId, storeName, storeData, products }) => {
-                    const crowd = crowdCfg[storeData?.crowdLevel ?? 'medium'];
+                    const status = storeData ? getLiveCrowdStatus(storeData) : 'medium';
+                    const crowd = crowdCfg[status];
                     return (
                       <div
                         key={storeId}

@@ -15,6 +15,12 @@ const formatShortDate = (dateStr?: string) => {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
+const crowdConfig = {
+  low: { color: '#16a34a', bg: '#dcfce7', label: 'Low' },
+  medium: { color: '#d97706', bg: '#fef3c7', label: 'Moderate' },
+  high: { color: '#dc2626', bg: '#fee2e2', label: 'Busy' },
+};
+
 // Helper to format as "3/3/2026, 8:37:50 PM"
 const formatFullDateTime = (dateStr?: string) => {
   if (!dateStr) return '';
@@ -30,6 +36,62 @@ const formatFullDateTime = (dateStr?: string) => {
     hour12: true
   });
 };
+
+// ─── help determine status dynamically ──────────────────────
+function parseMin(s: string) {
+  const str = s.trim().toUpperCase().replace(/\s+/g, '');
+  const m12 = str.match(/^(\d{1,2})(?::(\d{2}))?(AM|PM)$/);
+  if (m12) {
+    let h = parseInt(m12[1], 10);
+    const min = m12[2] ? parseInt(m12[2], 10) : 0;
+    const ampm = m12[3];
+    if (ampm === 'PM' && h !== 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    return h * 60 + min;
+  }
+  const m24 = str.match(/^(\d{1,2})(?::(\d{2}))?$/);
+  if (m24) {
+    const h = parseInt(m24[1], 10);
+    const min = m24[2] ? parseInt(m24[2], 10) : 0;
+    if (h >= 0 && h < 24) return h * 60 + min;
+  }
+  return -1;
+}
+
+function getLiveCrowdStatus(store: any): 'low' | 'medium' | 'high' {
+  const now = new Date();
+  const cur = now.getHours() * 60 + now.getMinutes();
+
+  // 1. Reality Check (The Live Pulse)
+  if (store.lastCrowdLevel && store.lastCrowdLevel !== 'not_sure' && store.lastCrowdTime) {
+    const reportTime = new Date(store.lastCrowdTime);
+    const diffInMinutes = (now.getTime() - reportTime.getTime()) / (1000 * 60);
+    if (diffInMinutes >= 0 && diffInMinutes < 60) {
+      return store.lastCrowdLevel as 'low' | 'medium' | 'high';
+    }
+  }
+
+  // 2. Expectation Check (The Historical Pattern)
+  const isCurrent = (slot: string) => {
+    const parts = slot.split(/\s*[–\-\/tToO]+\s*/);
+    if (parts.length < 2) return false;
+    let sStr = parts[0].trim(), eStr = parts[1].trim();
+    if (/[AP]M$/i.test(eStr) && !/[AP]M$/i.test(sStr)) {
+      const suffix = eStr.slice(-2).toUpperCase();
+      const endH = parseInt(eStr.split(':')[0], 10);
+      const startH = parseInt(sStr.split(':')[0], 10);
+      const sSuffix = (startH === 11 && endH === 12) ? (suffix === 'PM' ? 'AM' : 'PM') : suffix;
+      sStr += sSuffix;
+    }
+    const sVal = parseMin(sStr), eVal = parseMin(eStr);
+    if (sVal < 0 || eVal < 0) return false;
+    if (sVal < eVal) return cur >= sVal && cur < eVal;
+    return cur >= sVal || cur < eVal;
+  };
+  if (store.peakHours?.some(isCurrent)) return 'high';
+  if (store.offPeakHours?.some(isCurrent)) return 'low';
+  return 'medium';
+}
 
 export default function AdminPage() {
   const { isAdmin, login } = useAuth();
@@ -67,7 +129,11 @@ export default function AdminPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const ok = await login(username, password);
-    if (!ok) setLoginError('Invalid credentials. Try admin / adminpabili');
+    if (!ok) {
+      toast.error('Login failed. Please check your credentials!');
+    } else {
+      toast.success('Successfully logged in as administrator!');
+    }
   };
 
   const handleApproveProduct = async (id: string) => {
@@ -413,7 +479,7 @@ export default function AdminPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    {['Image', 'Store Name', 'Rating', 'Date Created', 'Actions'].map(h => (
+                    {['Image', 'Store Name', 'Crowd Level', 'Rating', 'Date Created', 'Actions'].map(h => (
                       <th
                         key={h}
                         style={{
@@ -456,6 +522,23 @@ export default function AdminPage() {
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>
                         {s.name}
+                      </td>
+                      <td style={{ padding: '14px 18px' }}>
+                        {(() => {
+                          const status = getLiveCrowdStatus(s);
+                          const config = crowdConfig[status];
+                          return (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '4px',
+                              fontSize: '0.72rem', fontWeight: 700,
+                              color: config.color,
+                              backgroundColor: config.bg,
+                              borderRadius: '999px', padding: '3px 10px',
+                            }}>
+                              {config.label}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td style={{ padding: '14px 18px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -914,6 +997,23 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
       return;
     }
 
+    const timeFormat = /^(1[0-2]|[1-9]):[0-5][0-9]-(1[0-2]|[1-9]):[0-5][0-9](AM|PM)$/;
+
+    if (form.peakHours.trim() && !timeFormat.test(form.peakHours.trim())) {
+      toast.error('Peak Hour must be in the format 9:00-10:00AM (12-hour, case-sensitive AM/PM)');
+      return;
+    }
+
+    if (form.offPeakHours.trim() && !timeFormat.test(form.offPeakHours.trim())) {
+      toast.error('Off-Peak Hour must be in the format 1:00-2:00PM (12-hour, case-sensitive AM/PM)');
+      return;
+    }
+
+    if (form.peakHours.trim() && form.offPeakHours.trim() && form.peakHours.trim() === form.offPeakHours.trim()) {
+      toast.error('Peak and Off-Peak hours cannot be the same time!');
+      return;
+    }
+
     setSubmitting(true);
     const ok = await onAdd({
       name: form.name.trim(),
@@ -921,8 +1021,8 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
       lat: parseFloat(form.lat),
       lng: parseFloat(form.lng),
       image: form.image.trim(),
-      peakHours: form.peakHours ? form.peakHours.split(',').map(s => s.trim()) : [],
-      offPeakHours: form.offPeakHours ? form.offPeakHours.split(',').map(s => s.trim()) : []
+      peakHours: form.peakHours.trim() ? [form.peakHours.trim()] : [],
+      offPeakHours: form.offPeakHours.trim() ? [form.offPeakHours.trim()] : []
     });
     setSubmitting(false);
     if (ok) {
@@ -1071,21 +1171,21 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
 
           {/* Peak / Off-Peak Hours */}
           <div style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>Peak Hours (comma separated)</label>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>Peak Hour (Optional)</label>
             <input
               type="text" value={form.peakHours}
               onChange={e => setForm({ ...form, peakHours: e.target.value })}
-              placeholder="e.g. 10 AM - 12 PM, 5 PM - 7 PM"
+              placeholder="e.g. 9:00-10:00AM"
               style={inputStyle('peakHours')}
             />
           </div>
 
           <div style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>Off-Peak Hours (comma separated)</label>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>Off-Peak Hour (Optional)</label>
             <input
               type="text" value={form.offPeakHours}
               onChange={e => setForm({ ...form, offPeakHours: e.target.value })}
-              placeholder="e.g. 1 PM - 3 PM"
+              placeholder="e.g. 1:00-2:00PM"
               style={inputStyle('offPeakHours')}
             />
           </div>
@@ -1141,6 +1241,43 @@ function ClickHandler({ onPick }: { onPick: (lat: number, lng: number) => void }
   return null;
 }
 
+function LocateControl({ onLocate }: { onLocate: (lat: number, lng: number) => void }) {
+  const map = useMapEvents({
+    locationfound(e) {
+      map.flyTo(e.latlng, map.getZoom(), { duration: 1.0 });
+      onLocate(e.latlng.lat, e.latlng.lng);
+    },
+    locationerror(err) {
+      toast.error("Could not find your location: " + err.message);
+    }
+  });
+
+  return (
+    <button
+      type="button"
+      onClick={() => map.locate({ enableHighAccuracy: true })}
+      style={{
+        position: 'absolute',
+        top: '12px',
+        right: '12px',
+        zIndex: 1000,
+        backgroundColor: '#fff',
+        border: 'none',
+        borderRadius: '8px',
+        padding: '8px',
+        cursor: 'pointer',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}
+      title="Find my location"
+    >
+      <MapPin style={{ width: 18, height: 18, color: '#8B1538' }} />
+    </button>
+  );
+}
+
 function LocationPicker({
   lat, lng, onPick,
 }: {
@@ -1161,6 +1298,7 @@ function LocationPicker({
         maxZoom={19}
       />
       <ClickHandler onPick={onPick} />
+      <LocateControl onLocate={onPick} />
       {lat != null && lng != null && <Marker position={[lat, lng]} icon={maroonIcon} />}
     </MapContainer>
   );

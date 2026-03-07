@@ -1,8 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useNavigate } from 'react-router-dom';
+import { MapPin } from 'lucide-react';
+import { toast } from 'sonner';
 import type { Store } from '../../types';
 
 // Fix Leaflet default icon paths in Vite
@@ -21,15 +23,68 @@ const crowdColor: Record<string, string> = {
     high: '#dc2626',
 };
 
+// ─── help determine status dynamically ──────────────────────
+function parseMin(s: string) {
+    const str = s.trim().toUpperCase().replace(/\s+/g, '');
+    const m12 = str.match(/^(\d{1,2})(?::(\d{2}))?(AM|PM)$/);
+    if (m12) {
+        let h = parseInt(m12[1], 10);
+        const min = m12[2] ? parseInt(m12[2], 10) : 0;
+        const ampm = m12[3];
+        if (ampm === 'PM' && h !== 12) h += 12;
+        if (ampm === 'AM' && h === 12) h = 0;
+        return h * 60 + min;
+    }
+    const m24 = str.match(/^(\d{1,2})(?::(\d{2}))?$/);
+    if (m24) {
+        const h = parseInt(m24[1], 10);
+        const min = m24[2] ? parseInt(m24[2], 10) : 0;
+        if (h >= 0 && h < 24) return h * 60 + min;
+    }
+    return -1;
+}
+
+function getLiveCrowdStatus(store: Store): 'low' | 'medium' | 'high' {
+    const now = new Date();
+    const cur = now.getHours() * 60 + now.getMinutes();
+
+    // 1. Reality Check (The Live Pulse)
+    if (store.lastCrowdLevel && store.lastCrowdLevel !== 'not_sure' && store.lastCrowdTime) {
+        const reportTime = new Date(store.lastCrowdTime);
+        const diffInMinutes = (now.getTime() - reportTime.getTime()) / (1000 * 60);
+        if (diffInMinutes >= 0 && diffInMinutes < 60) {
+            return store.lastCrowdLevel as 'low' | 'medium' | 'high';
+        }
+    }
+
+    // 2. Expectation Check (The Historical Pattern)
+    const isCurrent = (slot: string) => {
+        const parts = slot.split(/\s*[–\-\/tToO]+\s*/);
+        if (parts.length < 2) return false;
+        let sStr = parts[0].trim(), eStr = parts[1].trim();
+        if (/[AP]M$/i.test(eStr) && !/[AP]M$/i.test(sStr)) {
+            const suffix = eStr.slice(-2).toUpperCase();
+            const endH = parseInt(eStr.split(':')[0], 10);
+            const startH = parseInt(sStr.split(':')[0], 10);
+            const sSuffix = (startH === 11 && endH === 12) ? (suffix === 'PM' ? 'AM' : 'PM') : suffix;
+            sStr += sSuffix;
+        }
+        const sVal = parseMin(sStr), eVal = parseMin(eStr);
+        if (sVal < 0 || eVal < 0) return false;
+        if (sVal < eVal) return cur >= sVal && cur < eVal;
+        return cur >= sVal || cur < eVal;
+    };
+    if (store.peakHours?.some(isCurrent)) return 'high';
+    if (store.offPeakHours?.some(isCurrent)) return 'low';
+    return 'medium';
+}
+
 // ── Build a divIcon with the label embedded in HTML ─────────────────────────
-// iconSize is fixed so Leaflet never repositions other markers on hover.
-// CSS :hover on .pamili-home-pin scales from bottom-center (pin tip stays put).
 function buildHomeIcon(color: string, name: string) {
     return L.divIcon({
         className: '',
-        // Fixed container: wide enough for most names, tall enough for label+gap+pin
         iconSize: [10, 58],
-        iconAnchor: [5, 58], // bottom-center of pin (not label)
+        iconAnchor: [5, 58],
         html: `
       <div class="pamili-home-pin" data-color="${color}">
         <div class="pamili-home-label">${name}</div>
@@ -42,49 +97,84 @@ function buildHomeIcon(color: string, name: string) {
     });
 }
 
-// ── Pan to user's real GPS location ─────────────────────────────────────────
-function GeoLocator() {
+// ── Manual GPS Locator ────────────────────────────────────────────────────────
+function GeoLocator({ userPos, onLocate }: { userPos: [number, number] | null; onLocate: (pos: [number, number]) => void }) {
     const map = useMap();
 
+    // Background fetch on mount
     useEffect(() => {
         if (!navigator.geolocation) return;
-
         navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                const { latitude, longitude } = pos.coords;
-
-                // Fly to user
-                map.flyTo([latitude, longitude], 17, { duration: 1.2 });
-
-                // Add a circle marker (blue dot)
-                L.circleMarker([latitude, longitude], {
-                    radius: 8,
-                    fillColor: '#2563eb',
-                    color: '#ffffff',
-                    weight: 2,
-                    fillOpacity: 1,
-                }).addTo(map);
-            },
+            (pos) => onLocate([pos.coords.latitude, pos.coords.longitude]),
             () => { },
-            { timeout: 6000 }
+            { timeout: 5000 }
         );
-    }, [map]);
+    }, [onLocate]);
 
-    return null;
+    return (
+        <button
+            type="button"
+            onClick={() => {
+                if (userPos) {
+                    map.flyTo(userPos, 17, { duration: 1.2 });
+                }
+                // Also trigger a fresh high-accuracy update
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+                        onLocate(coords);
+                        map.flyTo(coords, 17, { duration: 1.2 });
+                    },
+                    (err) => toast.error("Could not find your location: " + err.message),
+                    { enableHighAccuracy: true, timeout: 15000 }
+                );
+            }}
+            style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                zIndex: 500,
+                backgroundColor: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '8px',
+                cursor: 'pointer',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+            }}
+            title="Locate Me"
+        >
+            <MapPin style={{ width: 18, height: 18, color: '#8B1538' }} />
+        </button>
+    );
 }
 
 function FitBounds({ stores }: { stores: Store[] }) {
     const map = useMap();
 
-    useEffect(() => {
+    const handleFit = useCallback(() => {
         if (!stores.length) return;
-
-        const bounds = L.latLngBounds(
-            stores.map(s => [s.location.lat, s.location.lng])
-        );
-
+        const bounds = L.latLngBounds(stores.map(s => [s.location.lat, s.location.lng]));
         map.fitBounds(bounds, { padding: [50, 50] });
     }, [stores, map]);
+
+    // Initial Fit
+    useEffect(() => {
+        handleFit();
+    }, [handleFit]);
+
+    // Visibility Reset
+    useEffect(() => {
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') {
+                handleFit();
+            }
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => document.removeEventListener('visibilitychange', onVisible);
+    }, [handleFit]);
 
     return null;
 }
@@ -96,6 +186,7 @@ interface HomeMapProps {
 
 export default function HomeMap({ stores, height = '560px' }: HomeMapProps) {
     const navigate = useNavigate();
+    const [userLoc, setUserLoc] = useState<[number, number] | null>(null);
 
     return (
         <MapContainer
@@ -114,18 +205,41 @@ export default function HomeMap({ stores, height = '560px' }: HomeMapProps) {
                 url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                 maxZoom={19}
             />
-            <GeoLocator />
 
+            <GeoLocator userPos={userLoc} onLocate={setUserLoc} />
             <FitBounds stores={stores} />
 
-            {stores.map((store) => (
+            {userLoc && (
                 <Marker
-                    key={store._id}
-                    position={[store.location.lat, store.location.lng]}
-                    icon={buildHomeIcon(crowdColor[store.crowdLevel] ?? '#8B1538', store.name)}
-                    eventHandlers={{ click: () => navigate(`/store/${store._id}`) }}
+                    position={userLoc}
+                    icon={L.divIcon({
+                        className: '',
+                        html: `<div style="
+                            width:16px;
+                            height:16px;
+                            background:#2563eb;
+                            border-radius:50%;
+                            border:3px solid white;
+                            box-shadow: 0 0 10px rgba(37,99,235,0.5);
+                        "></div>`,
+                        iconSize: [16, 16],
+                        iconAnchor: [8, 8],
+                    })}
                 />
-            ))}
+            )}
+
+            {stores.map((store) => {
+                const status = getLiveCrowdStatus(store);
+                const color = crowdColor[status] ?? '#8B1538';
+                return (
+                    <Marker
+                        key={store._id}
+                        position={[store.location.lat, store.location.lng]}
+                        icon={buildHomeIcon(color, store.name)}
+                        eventHandlers={{ click: () => navigate(`/store/${store._id}`) }}
+                    />
+                );
+            })}
         </MapContainer>
     );
 }

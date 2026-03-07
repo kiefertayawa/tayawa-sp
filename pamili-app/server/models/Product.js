@@ -20,7 +20,9 @@ const productSchema = new mongoose.Schema({
   priceHistory: [priceHistorySchema],
   status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
   submittedBy: { type: String, default: 'Anonymous Student' },
-  submittedDate: { type: String, default: () => new Date().toLocaleString() },
+  submittedDate: { type: String, default: () => new Date().toISOString() },
+  crowdLevel: { type: String, enum: ['low', 'medium', 'high', 'not_sure'], default: 'not_sure' },
+  locationVerified: { type: Boolean, default: false },
 }, { timestamps: true });
 
 // Full-text search index

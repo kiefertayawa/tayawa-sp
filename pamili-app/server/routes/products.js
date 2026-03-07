@@ -74,10 +74,26 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Helper for Haversine distance in meters
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3; // metres
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) *
+    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
 // POST /api/products/submit — community submits a product price
 router.post('/submit', async (req, res) => {
   try {
-    const { name, storeId, price, image } = req.body;
+    const { name, storeId, price, image, lat, lng, crowdLevel } = req.body;
     const DEFAULT_IMAGE = 'https://placehold.co/400x400?text=No+Image+Available';
 
     if (!name || !storeId || !price) {
@@ -99,21 +115,40 @@ router.post('/submit', async (req, res) => {
     const store = await Store.findById(storeId);
     if (!store) return res.status(404).json({ success: false, error: 'Store not found' });
 
+    // Geofencing Verification (Determine if we trust this user's crowd level data)
+    let locationVerified = false;
+    if (lat !== undefined && lng !== undefined) {
+      const distance = getDistance(lat, lng, store.location.lat, store.location.lng);
+      const THRESHOLD = 500; // 500 meters
+      if (distance <= THRESHOLD) {
+        locationVerified = true;
+      }
+    }
+
     // In this unified approach, a submission is just a Product document with status: 'pending'
     const sub = await Product.create({
       name: name.trim(),
       image: image ? image.trim() : DEFAULT_IMAGE,
       status: 'pending',
+      crowdLevel: crowdLevel || 'not_sure',
+      locationVerified,
       prices: [{
         storeId,
         storeName: store.name,
         price: priceNum,
         inStock: true,
         lastUpdated: new Date().toISOString().split('T')[0]
-      }]
+      }],
+      submittedDate: new Date().toISOString()
     });
 
-    res.status(201).json({ success: true, data: sub, message: 'Submitted for review' });
+    res.status(201).json({
+      success: true,
+      data: sub,
+      message: locationVerified
+        ? 'Submitted and verified via geofencing!'
+        : 'Submitted for review (Location not verified, will not affect store insights).'
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
