@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Star, Package, LogIn, Eye, EyeOff, CheckCircle, X, User, Plus, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap, CircleMarker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { usePendingItems } from '../hooks';
@@ -125,6 +125,19 @@ export default function AdminPage() {
     approveProduct, rejectProduct, approveReview, rejectReview,
     addStore, deleteStore
   } = usePendingItems();
+
+  // Scroll Lock for Modals
+  useEffect(() => {
+    const isModalOpen = showAddStore || confirmModal.show || viewReviewModal.show || viewProductModal.show;
+    if (isModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showAddStore, confirmModal.show, viewReviewModal.show, viewProductModal.show]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -980,6 +993,23 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
 
+  // Automatically pick current location on open
+  useEffect(() => {
+    if (isOpen && !form.lat && !form.lng) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const lat = pos.coords.latitude.toFixed(6);
+            const lng = pos.coords.longitude.toFixed(6);
+            setForm(f => ({ ...f, lat, lng }));
+          },
+          () => { },
+          { enableHighAccuracy: true }
+        );
+      }
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1241,21 +1271,46 @@ function ClickHandler({ onPick }: { onPick: (lat: number, lng: number) => void }
   return null;
 }
 
-function LocateControl({ onLocate }: { onLocate: (lat: number, lng: number) => void }) {
-  const map = useMapEvents({
-    locationfound(e) {
-      map.flyTo(e.latlng, map.getZoom(), { duration: 1.0 });
-      onLocate(e.latlng.lat, e.latlng.lng);
-    },
-    locationerror(err) {
-      toast.error("Could not find your location: " + err.message);
+function LocateControl({ onLocate }: { onLocate: (coords: [number, number]) => void }) {
+  const map = useMap();
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (btnRef.current) {
+      L.DomEvent.disableClickPropagation(btnRef.current);
+      L.DomEvent.disableScrollPropagation(btnRef.current);
     }
-  });
+  }, []);
 
   return (
     <button
+      ref={btnRef}
       type="button"
-      onClick={() => map.locate({ enableHighAccuracy: true })}
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        if (!navigator.geolocation) return;
+
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+            onLocate(coords);
+
+            // Fix: Check distance to current center to prevent "shake" if already there
+            const center = map.getCenter();
+            const dist = center.distanceTo(coords);
+            const zoom = map.getZoom();
+
+            if (dist > 5 || zoom !== 17) {
+              map.flyTo(coords, 17, { animate: true, duration: 1.2 });
+            }
+          },
+          (err) => {
+            toast.error("Could not find your location: " + err.message);
+          },
+          { enableHighAccuracy: true, timeout: 15000 }
+        );
+      }}
       style={{
         position: 'absolute',
         top: '12px',
@@ -1285,6 +1340,17 @@ function LocationPicker({
   lng: number | null;
   onPick: (lat: number, lng: number) => void;
 }) {
+  const [userPos, setUserPos] = useState<[number, number] | null>(null);
+
+  // Initial user position fetch for the blue circle
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        setUserPos([pos.coords.latitude, pos.coords.longitude]);
+      });
+    }
+  }, []);
+
   return (
     <MapContainer
       center={lat != null && lng != null ? [lat, lng] : BATONG_MALAKE}
@@ -1298,7 +1364,19 @@ function LocationPicker({
         maxZoom={19}
       />
       <ClickHandler onPick={onPick} />
-      <LocateControl onLocate={onPick} />
+      <LocateControl onLocate={setUserPos} />
+      {userPos && (
+        <CircleMarker
+          center={userPos}
+          radius={8}
+          pathOptions={{
+            fillColor: '#3b82f6',
+            fillOpacity: 1,
+            color: '#fff',
+            weight: 2
+          }}
+        />
+      )}
       {lat != null && lng != null && <Marker position={[lat, lng]} icon={maroonIcon} />}
     </MapContainer>
   );

@@ -158,7 +158,7 @@ export default function SubmitProductForm({ isOpen, onClose }: SubmitProductForm
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '20px 24px 16px', flexShrink: 0 }}>
               <div>
                 <h2 style={{ fontWeight: 700, fontSize: '1.1rem', color: '#111827', margin: 0 }}>Submit Product &amp; Price</h2>
-                <p style={{ fontSize: '0.875rem', color: '#9ca3af', margin: '4px 0 0' }}>Help the community by adding new product info</p>
+                <p style={{ fontSize: '0.875rem', color: '#9ca3af', margin: '4px 0 0' }}>Help the community by adding new product information.</p>
               </div>
               <button
                 type="button"
@@ -415,9 +415,10 @@ export default function SubmitProductForm({ isOpen, onClose }: SubmitProductForm
                 }}>Before submitting:</p>
                 {
                   [
-                    'Ensure the price is current and accurate.',
-                    'Using a direct image link helps fellow users see the product.',
-                    'Your submission will be reviewed by administrators.',
+                    'Ensure the price is updated and accurate.',
+                    'Using a direct image link helps fellow users to see the product.',
+                    'Your verification of the crowd level helps update the store\'s live status.',
+                    'All submissions will be reviewed by administrators.',
                   ].map(tip => (
                     <div key={tip} style={{ display: 'flex', gap: '8px', fontSize: '0.875rem', color: '#9d174d', marginBottom: '4px' }}>
                       <span>•</span> {tip}

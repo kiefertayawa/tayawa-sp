@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, useMap, CircleMarker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useNavigate } from 'react-router-dom';
@@ -100,6 +100,14 @@ function buildHomeIcon(color: string, name: string) {
 // ── Manual GPS Locator ────────────────────────────────────────────────────────
 function GeoLocator({ userPos, onLocate }: { userPos: [number, number] | null; onLocate: (pos: [number, number]) => void }) {
     const map = useMap();
+    const btnRef = useRef<HTMLButtonElement>(null);
+
+    useEffect(() => {
+        if (btnRef.current) {
+            L.DomEvent.disableClickPropagation(btnRef.current);
+            L.DomEvent.disableScrollPropagation(btnRef.current);
+        }
+    }, []);
 
     // Background fetch on mount
     useEffect(() => {
@@ -113,17 +121,20 @@ function GeoLocator({ userPos, onLocate }: { userPos: [number, number] | null; o
 
     return (
         <button
+            ref={btnRef}
             type="button"
-            onClick={() => {
+            onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 if (userPos) {
-                    map.flyTo(userPos, 17, { duration: 1.2 });
+                    map.flyTo(userPos, 17, { animate: true, duration: 1.2 });
                 }
                 // Also trigger a fresh high-accuracy update
                 navigator.geolocation.getCurrentPosition(
                     (pos) => {
                         const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
                         onLocate(coords);
-                        map.flyTo(coords, 17, { duration: 1.2 });
+                        map.flyTo(coords, 17, { animate: true, duration: 1.2 });
                     },
                     (err) => toast.error("Could not find your location: " + err.message),
                     { enableHighAccuracy: true, timeout: 15000 }
@@ -210,21 +221,15 @@ export default function HomeMap({ stores, height = '560px' }: HomeMapProps) {
             <FitBounds stores={stores} />
 
             {userLoc && (
-                <Marker
-                    position={userLoc}
-                    icon={L.divIcon({
-                        className: '',
-                        html: `<div style="
-                            width:16px;
-                            height:16px;
-                            background:#2563eb;
-                            border-radius:50%;
-                            border:3px solid white;
-                            box-shadow: 0 0 10px rgba(37,99,235,0.5);
-                        "></div>`,
-                        iconSize: [16, 16],
-                        iconAnchor: [8, 8],
-                    })}
+                <CircleMarker
+                    center={userLoc}
+                    radius={8}
+                    pathOptions={{
+                        fillColor: '#3b82f6',
+                        fillOpacity: 1,
+                        color: '#fff',
+                        weight: 2
+                    }}
                 />
             )}
 

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, useMap, CircleMarker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapPin } from 'lucide-react';
@@ -110,6 +110,14 @@ function MapController({ target }: { target: [number, number] | null }) {
 // ── Manual GPS Locator ────────────────────────────────────────────────────────
 function GeoLocator({ userPos, onLocate }: { userPos: [number, number] | null; onLocate: (pos: [number, number]) => void }) {
     const map = useMap();
+    const btnRef = useRef<HTMLButtonElement>(null);
+
+    useEffect(() => {
+        if (btnRef.current) {
+            L.DomEvent.disableClickPropagation(btnRef.current);
+            L.DomEvent.disableScrollPropagation(btnRef.current);
+        }
+    }, []);
 
     // Background fetch on mount
     useEffect(() => {
@@ -123,17 +131,20 @@ function GeoLocator({ userPos, onLocate }: { userPos: [number, number] | null; o
 
     return (
         <button
+            ref={btnRef}
             type="button"
-            onClick={() => {
+            onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
                 if (userPos) {
-                    map.flyTo(userPos, 17, { duration: 1.2 });
+                    map.flyTo(userPos, 17, { animate: true, duration: 1.2 });
                 }
 
                 map.locate({ enableHighAccuracy: true });
                 map.once('locationfound', (e) => {
                     const coords: [number, number] = [e.latlng.lat, e.latlng.lng];
                     onLocate(coords);
-                    map.flyTo(e.latlng, 17, { duration: 1.2 });
+                    map.flyTo(e.latlng, 17, { animate: true, duration: 1.2 });
                 });
                 map.once('locationerror', (err) => {
                     toast.error("Could not find your location: " + err.message);
@@ -221,21 +232,15 @@ export default function SearchMap({ pins, onStoreClick, highlightedStoreId }: Se
             <FitBounds pins={pins} />
 
             {userPos && (
-                <Marker
-                    position={userPos}
-                    icon={L.divIcon({
-                        className: '',
-                        html: `<div style="
-                            width:16px;
-                            height:16px;
-                            background:#2563eb;
-                            border-radius:50%;
-                            border:3px solid white;
-                            box-shadow: 0 0 10px rgba(37,99,235,0.5);
-                        "></div>`,
-                        iconSize: [16, 16],
-                        iconAnchor: [8, 8],
-                    })}
+                <CircleMarker
+                    center={userPos}
+                    radius={8}
+                    pathOptions={{
+                        fillColor: '#3b82f6',
+                        fillOpacity: 1,
+                        color: '#fff',
+                        weight: 2
+                    }}
                 />
             )}
 
