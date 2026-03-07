@@ -143,29 +143,41 @@ router.patch('/products/:id/approve', auth, async (req, res) => {
         }
       });
 
-      const getTopRange = (data, recencyData, exclude = null) => {
-        let keys = Object.keys(data);
-        if (exclude) keys = keys.filter(k => k !== exclude);
+      const getTopRange = (data, targetRecency, otherRecency, otherData = {}, exclude = null) => {
+        let keys = Object.keys(data).filter(k => {
+          if (exclude && k === exclude) return false;
+          const myCount = data[k] || 0;
+          const otherCount = otherData[k] || 0;
+
+          if (myCount > otherCount) return true;
+          if (myCount < otherCount) return false;
+
+          // Tie-Breaker for the SAME slot (e.g. 1 High vs 1 Low):
+          // The status reported most recently wins the pattern for that hour.
+          const myLatest = targetRecency[k] || 0;
+          const otherLatest = otherRecency[k] || 0;
+          return myLatest > otherLatest;
+        });
+
         if (keys.length === 0) return null;
 
         return keys.reduce((a, b) => {
           if (data[a] > data[b]) return a;
           if (data[b] > data[a]) return b;
-          // Tie-breaker: Recency
-          return recencyData[a] > recencyData[b] ? a : b;
+          // Tie-breaker for DIFFERENT slots (e.g. 12PM vs 1PM)
+          return targetRecency[a] > targetRecency[b] ? a : b;
         });
       };
 
-      const peakRange = getTopRange(hourCounts.high, lastSeen.high);
+      const peakRange = getTopRange(hourCounts.high, lastSeen.high, lastSeen.low, hourCounts.low);
       // Ensure off-peak is never the same as peak
-      const offPeakRange = getTopRange(hourCounts.low, lastSeen.low, peakRange);
+      const offPeakRange = getTopRange(hourCounts.low, lastSeen.low, lastSeen.high, hourCounts.high, peakRange);
 
       // 3. Update Store (Safe Pulse Update)
       const currentStore = await Store.findById(submissionStore.storeId);
       const reportTime = pending.createdAt;
 
       const storeUpdate = {
-        crowdLevel: currentCrowdLevel,
         peakHours: peakRange ? [peakRange] : [],
         offPeakHours: offPeakRange ? [offPeakRange] : []
       };
@@ -311,8 +323,7 @@ router.post('/stores', auth, async (req, res) => {
       peakHours: peakHours || [],
       offPeakHours: offPeakHours || [],
       rating: 0,
-      reviewCount: 0,
-      crowdLevel: 'low'
+      reviewCount: 0
     });
 
     res.status(201).json({ success: true, data: store });

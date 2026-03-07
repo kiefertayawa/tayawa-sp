@@ -89,9 +89,30 @@ export function getLiveCrowdStatus(store: StoreType): 'low' | 'medium' | 'high' 
 }
 
 function isOpenNow(store: StoreType) {
-  // If there are no peak/off-peak info at all, we assume it's open (legacy compatibility)
+  // If no hours defined, we assume it's a 24/7 or unknown store, so visible by default
   if (!store.peakHours?.length && !store.offPeakHours?.length) return true;
-  return true;
+
+  const now = new Date();
+  const cur = now.getHours() * 60 + now.getMinutes();
+
+  const isCurrent = (slot: string) => {
+    const parts = slot.split(/\s*[–\-\/tToO]+\s*/);
+    if (parts.length < 2) return false;
+    let sStr = parts[0].trim(), eStr = parts[1].trim();
+    if (/[AP]M$/i.test(eStr) && !/[AP]M$/i.test(sStr)) {
+      const suffix = eStr.slice(-2).toUpperCase();
+      const endH = parseInt(eStr.split(':')[0], 10);
+      const startH = parseInt(sStr.split(':')[0], 10);
+      const sSuffix = (startH === 11 && endH === 12) ? (suffix === 'PM' ? 'AM' : 'PM') : suffix;
+      sStr += sSuffix;
+    }
+    const s = parseMin(sStr), e = parseMin(eStr);
+    if (s < 0 || e < 0) return false;
+    if (s < e) return cur >= s && cur < e;
+    return cur >= s || cur < e;
+  };
+
+  return store.peakHours?.some(isCurrent) || store.offPeakHours?.some(isCurrent);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -165,7 +186,7 @@ export default function SearchPage() {
     .filter(g => {
       const s = g.storeData;
       if (!s) return true;
-      if (filters.crowdLevels.size > 0 && !filters.crowdLevels.has(s.crowdLevel as any)) return false;
+      if (filters.crowdLevels.size > 0 && !filters.crowdLevels.has(getLiveCrowdStatus(s))) return false;
       if (filters.openNow && !isOpenNow(s)) return false;
       return true;
     })

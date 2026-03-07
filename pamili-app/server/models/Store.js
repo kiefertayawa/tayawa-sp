@@ -6,7 +6,6 @@ const storeSchema = new mongoose.Schema({
   address: { type: String, required: true },
   rating: { type: Number, default: 0 },
   reviewCount: { type: Number, default: 0 },
-  crowdLevel: { type: String, enum: ['low', 'medium', 'high'], default: 'low' },
   peakHours: [String],
   offPeakHours: [String],
   image: { type: String, default: '' },
