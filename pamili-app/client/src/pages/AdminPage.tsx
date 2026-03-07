@@ -124,7 +124,7 @@ export default function AdminPage() {
     pendingProducts, pendingReviews, stores, stats, loading,
     approveProduct, rejectProduct, approveReview, rejectReview,
     addStore, deleteStore
-  } = usePendingItems();
+  } = usePendingItems(isAdmin);
 
   // Scroll Lock for Modals
   useEffect(() => {
@@ -138,6 +138,14 @@ export default function AdminPage() {
       document.body.style.overflow = 'unset';
     };
   }, [showAddStore, confirmModal.show, viewReviewModal.show, viewProductModal.show]);
+
+  // Clear fields on logout
+  useEffect(() => {
+    if (!isAdmin) {
+      setUsername('');
+      setPassword('');
+    }
+  }, [isAdmin]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -189,7 +189,7 @@ export function useReviews(storeId: string | undefined) {
 }
 
 // ─── Admin ────────────────────────────────────────────────
-export function usePendingItems() {
+export function usePendingItems(isAdmin: boolean = true) {
   const [pendingProducts, setPendingProducts] = useState<Product[]>([]);
   const [pendingReviews, setPendingReviews] = useState<Review[]>([]);
   const [stats, setStats] = useState({
@@ -205,6 +205,10 @@ export function usePendingItems() {
   const [stores, setStores] = useState<Store[]>([]);
 
   const load = useCallback(async (silent = false) => {
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
     if (!silent) setLoading(true);
     try {
       const [prodRes, revRes, statsRes, storeRes] = await Promise.all([
@@ -222,7 +226,7 @@ export function usePendingItems() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin]);
 
   const refreshStats = async () => {
     try {

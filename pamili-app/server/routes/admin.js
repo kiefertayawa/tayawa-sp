@@ -128,7 +128,13 @@ router.patch('/products/:id/approve', auth, async (req, res) => {
       allData.forEach(d => {
         if (d.crowdLevel === 'high' || d.crowdLevel === 'low') {
           const date = new Date(d.submittedDate || d.createdAt);
-          const h = date.getHours();
+
+          // Force conversion to Philippine Time (UTC+8)
+          // Since Render runs in UTC, Date.getHours() returns a time 8 hours behind.
+          const phtMs = date.getTime() + (8 * 60 * 60 * 1000);
+          const phtDate = new Date(phtMs);
+
+          const h = phtDate.getUTCHours();
           const ts = date.getTime();
 
           const startH = h % 12 || 12;
