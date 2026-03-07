@@ -37,8 +37,8 @@ export interface Store {
   address: string;
   rating: number;
   reviewCount: number;
-  peakHours: string[];
-  offPeakHours: string[];
+  peakHours: string;
+  offPeakHours: string;
   image: string;
   lastCrowdLevel?: 'low' | 'medium' | 'high' | 'not_sure';
   lastCrowdTime?: string;

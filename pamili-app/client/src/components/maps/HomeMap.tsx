@@ -74,8 +74,8 @@ function getLiveCrowdStatus(store: Store): 'low' | 'medium' | 'high' {
         if (sVal < eVal) return cur >= sVal && cur < eVal;
         return cur >= sVal || cur < eVal;
     };
-    if (store.peakHours?.some(isCurrent)) return 'high';
-    if (store.offPeakHours?.some(isCurrent)) return 'low';
+    if (store.peakHours && isCurrent(store.peakHours)) return 'high';
+    if (store.offPeakHours && isCurrent(store.offPeakHours)) return 'low';
     return 'medium';
 }
 

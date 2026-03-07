@@ -88,8 +88,8 @@ function getLiveCrowdStatus(store: any): 'low' | 'medium' | 'high' {
     if (sVal < eVal) return cur >= sVal && cur < eVal;
     return cur >= sVal || cur < eVal;
   };
-  if (store.peakHours?.some(isCurrent)) return 'high';
-  if (store.offPeakHours?.some(isCurrent)) return 'low';
+  if (store.peakHours && isCurrent(store.peakHours)) return 'high';
+  if (store.offPeakHours && isCurrent(store.offPeakHours)) return 'low';
   return 'medium';
 }
 
@@ -100,7 +100,7 @@ export default function AdminPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loginError, setLoginError] = useState('');
+
 
   // Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState<{
@@ -252,7 +252,7 @@ export default function AdminPage() {
               }}
             />
             {/* Password field with show/hide toggle */}
-            <div style={{ position: 'relative', marginBottom: loginError ? '8px' : '16px' }}>
+            <div style={{ position: 'relative', marginBottom: '16px' }}>
               <input
                 type={showPassword ? 'text' : 'password'} required placeholder="Password"
                 value={password} onChange={e => setPassword(e.target.value)}
@@ -278,9 +278,7 @@ export default function AdminPage() {
                   : <Eye style={{ width: 17, height: 17 }} />}
               </button>
             </div>
-            {loginError && (
-              <p style={{ fontSize: '0.8rem', color: '#dc2626', marginBottom: '12px' }}>{loginError}</p>
-            )}
+
             <button
               type="submit"
               style={{
@@ -1051,8 +1049,8 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
       lat: parseFloat(form.lat),
       lng: parseFloat(form.lng),
       image: form.image.trim(),
-      peakHours: form.peakHours.trim() ? [form.peakHours.trim()] : [],
-      offPeakHours: form.offPeakHours.trim() ? [form.offPeakHours.trim()] : []
+      peakHours: form.peakHours.trim(),
+      offPeakHours: form.offPeakHours.trim()
     });
     setSubmitting(false);
     if (ok) {

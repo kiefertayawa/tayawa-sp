@@ -178,8 +178,8 @@ router.patch('/products/:id/approve', auth, async (req, res) => {
       const reportTime = pending.createdAt;
 
       const storeUpdate = {
-        peakHours: peakRange ? [peakRange] : [],
-        offPeakHours: offPeakRange ? [offPeakRange] : []
+        peakHours: peakRange || '',
+        offPeakHours: offPeakRange || ''
       };
 
       // ONLY update the Live Snapshot if this report is newer than the stored one
@@ -320,8 +320,8 @@ router.post('/stores', auth, async (req, res) => {
       address,
       location: { lat: parseFloat(lat), lng: parseFloat(lng) },
       image: image || '',
-      peakHours: peakHours || [],
-      offPeakHours: offPeakHours || [],
+      peakHours: peakHours || '',
+      offPeakHours: offPeakHours || '',
       rating: 0,
       reviewCount: 0
     });

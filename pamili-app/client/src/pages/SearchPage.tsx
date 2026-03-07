@@ -83,8 +83,8 @@ export function getLiveCrowdStatus(store: StoreType): 'low' | 'medium' | 'high' 
     return cur >= s || cur < e; // Wraps midnight
   };
 
-  if (store.peakHours?.some(isCurrent)) return 'high';
-  if (store.offPeakHours?.some(isCurrent)) return 'low';
+  if (store.peakHours && isCurrent(store.peakHours)) return 'high';
+  if (store.offPeakHours && isCurrent(store.offPeakHours)) return 'low';
   return 'medium';
 }
 
@@ -112,7 +112,9 @@ function isOpenNow(store: StoreType) {
     return cur >= s || cur < e;
   };
 
-  return store.peakHours?.some(isCurrent) || store.offPeakHours?.some(isCurrent);
+  const hasPeak = store.peakHours && isCurrent(store.peakHours);
+  const hasOffPeak = store.offPeakHours && isCurrent(store.offPeakHours);
+  return !!(hasPeak || hasOffPeak);
 }
 
 // ══════════════════════════════════════════════════════════════

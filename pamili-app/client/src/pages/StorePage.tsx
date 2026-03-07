@@ -60,8 +60,8 @@ function getLiveCrowdStatus(store: any): 'low' | 'medium' | 'high' {
     if (sVal < eVal) return cur >= sVal && cur < eVal;
     return cur >= sVal || cur < eVal;
   };
-  if (store.peakHours?.some(isCurrent)) return 'high';
-  if (store.offPeakHours?.some(isCurrent)) return 'low';
+  if (store.peakHours && isCurrent(store.peakHours)) return 'high';
+  if (store.offPeakHours && isCurrent(store.offPeakHours)) return 'low';
   return 'medium';
 }
 
@@ -168,12 +168,14 @@ export default function StorePage() {
                 <TrendingUp style={{ width: 15, height: 15, color: '#ef4444' }} />
                 <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>Peak Hours (Busy Times)</span>
               </div>
-              {store.peakHours.map(h => (
-                <div key={h} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+              {store.peakHours ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
                   <Clock style={{ width: 13, height: 13, color: '#9ca3af' }} />
-                  <span style={{ fontSize: '0.875rem', color: '#4b5563' }}>{h}</span>
+                  <span style={{ fontSize: '0.875rem', color: '#4b5563' }}>{store.peakHours}</span>
                 </div>
-              ))}
+              ) : (
+                <span style={{ fontSize: '0.82rem', color: '#9ca3af', fontStyle: 'italic' }}>Not available</span>
+              )}
             </div>
 
             {/* Off-peak */}
@@ -182,12 +184,14 @@ export default function StorePage() {
                 <TrendingDown style={{ width: 15, height: 15, color: '#16a34a' }} />
                 <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>Off-Peak Hours (Best Times)</span>
               </div>
-              {store.offPeakHours.map(h => (
-                <div key={h} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+              {store.offPeakHours ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
                   <Clock style={{ width: 13, height: 13, color: '#9ca3af' }} />
-                  <span style={{ fontSize: '0.875rem', color: '#4b5563' }}>{h}</span>
+                  <span style={{ fontSize: '0.875rem', color: '#4b5563' }}>{store.offPeakHours}</span>
                 </div>
-              ))}
+              ) : (
+                <span style={{ fontSize: '0.82rem', color: '#9ca3af', fontStyle: 'italic' }}>Not available</span>
+              )}
             </div>
           </div>
         </div>

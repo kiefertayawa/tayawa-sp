@@ -72,8 +72,8 @@ function getLiveCrowdStatus(store: Store): 'low' | 'medium' | 'high' {
     if (s < e) return cur >= s && cur < e;
     return cur >= s || cur < e;
   };
-  if (store.peakHours?.some(isCurrent)) return 'high';
-  if (store.offPeakHours?.some(isCurrent)) return 'low';
+  if (store.peakHours && isCurrent(store.peakHours)) return 'high';
+  if (store.offPeakHours && isCurrent(store.offPeakHours)) return 'low';
   return 'medium';
 }
 
@@ -403,16 +403,13 @@ function StoreCard({ store, onClick }: { store: Store; onClick: () => void }) {
           <span style={{ fontSize: '0.85rem', color: '#9ca3af' }}>({store.reviewCount} reviews)</span>
         </div>
 
-        {/* Peak hours */}
-        {store.peakHours.length > 0 && (
-          <div style={{ marginBottom: '16px' }}>
-            <p style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: '6px', fontWeight: 500 }}>
-              Peak Hours:
-            </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {store.peakHours.map(h => (
+        {/* Shopping Hours */}
+        {(store.peakHours || store.offPeakHours) && (
+          <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            {store.peakHours && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '0.78rem', color: '#6b7280', fontWeight: 500 }}>Peak Hours:</span>
                 <span
-                  key={h}
                   style={{
                     fontSize: '0.75rem', fontWeight: 500,
                     color: '#374151', backgroundColor: '#e5e7eb',
@@ -420,10 +417,10 @@ function StoreCard({ store, onClick }: { store: Store; onClick: () => void }) {
                     border: '1px solid #d1d5db',
                   }}
                 >
-                  {h}
+                  {store.peakHours}
                 </span>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
         )}
 
