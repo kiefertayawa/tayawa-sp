@@ -2,9 +2,6 @@
 // PAMILI - Express Server Entry Point
 // ============================================================
 
-const dns = require('dns');
-dns.setDefaultResultOrder('ipv4first');
-
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
