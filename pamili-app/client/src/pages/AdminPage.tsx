@@ -150,6 +150,10 @@ export default function AdminPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!username.trim() || !password.trim()) {
+      toast.error('Please fill out all fields.');
+      return;
+    }
     setIsLoggingIn(true);
     const ok = await login(username, password);
     setIsLoggingIn(false);
@@ -252,7 +256,7 @@ export default function AdminPage() {
 
           <form onSubmit={handleLogin}>
             <input
-              type="text" required placeholder="Username"
+              type="text" placeholder="Username"
               value={username} onChange={e => setUsername(e.target.value)}
               style={{
                 display: 'block', width: '100%', marginBottom: '12px',
@@ -264,7 +268,7 @@ export default function AdminPage() {
             {/* Password field with show/hide toggle */}
             <div style={{ position: 'relative', marginBottom: '16px' }}>
               <input
-                type={showPassword ? 'text' : 'password'} required placeholder="Password"
+                type={showPassword ? 'text' : 'password'} placeholder="Password"
                 value={password} onChange={e => setPassword(e.target.value)}
                 style={{
                   display: 'block', width: '100%',
