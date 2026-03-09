@@ -39,20 +39,8 @@ app.use(cors({
   credentials: true,
 }));
 
-// Use conditional parsing to ensure global parsers don't interfere with multipart photo uploads
-app.use((req, res, next) => {
-  if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
-    return next();
-  }
-  express.json({ limit: '10mb' })(req, res, next);
-});
-
-app.use((req, res, next) => {
-  if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
-    return next();
-  }
-  express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);
-});
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve uploaded images as static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

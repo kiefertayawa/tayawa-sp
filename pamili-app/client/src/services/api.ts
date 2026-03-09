@@ -103,13 +103,16 @@ export const productService = {
       return mockResponse(pending);
     }
     const formData = new FormData();
+    // TEXT FIELDS FIRST
     formData.append('name', data.name);
     formData.append('storeId', data.storeId);
     formData.append('price', data.price.toString());
-    if (data.image) formData.append('image', data.image);
     if (data.lat !== undefined) formData.append('lat', data.lat.toString());
     if (data.lng !== undefined) formData.append('lng', data.lng.toString());
     if (data.crowdLevel) formData.append('crowdLevel', data.crowdLevel);
+
+    // FILE LAST (Best for production parsers)
+    if (data.image) formData.append('image', data.image);
 
     return api.post<ApiResponse<Product>>('/products/submit', formData);
   },
@@ -177,9 +180,12 @@ export const reviewService = {
     }
 
     const formData = new FormData();
+    // TEXT FIELDS FIRST
     formData.append('storeId', data.storeId);
     formData.append('rating', data.rating.toString());
     formData.append('text', data.text);
+
+    // FILES LAST
     if (data.images) {
       data.images.forEach(img => formData.append('images', img));
     }
@@ -281,13 +287,16 @@ export const adminService = {
     }
 
     const formData = new FormData();
+    // TEXT FIELDS FIRST
     formData.append('name', data.name);
     formData.append('address', data.address);
     formData.append('lat', data.lat.toString());
     formData.append('lng', data.lng.toString());
-    if (data.image) formData.append('image', data.image);
     if (data.peakHours) formData.append('peakHours', data.peakHours);
     if (data.offPeakHours) formData.append('offPeakHours', data.offPeakHours);
+
+    // FILE LAST
+    if (data.image) formData.append('image', data.image);
 
     return api.post<ApiResponse<Store>>('/admin/stores', formData);
   },
