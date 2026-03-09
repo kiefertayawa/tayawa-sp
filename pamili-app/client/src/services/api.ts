@@ -31,10 +31,10 @@ function mockResponse<T>(data: T): Promise<{ data: ApiResponse<T> }> {
 
 // ─── Real axios instance (used when USE_MOCK = false) ────────
 import axios from 'axios';
-const BASE_URL = import.meta.env.VITE_API_URL ||
-  (import.meta.env.PROD
-    ? 'https://tayawa-7gn5daaol-tayawakiefer-4276s-projects.vercel.app/api'
-    : 'http://localhost:5000/api');
+const PROD_URL = import.meta.env.VITE_API_URL || 'https://pamili-server.onrender.com/api'; // Replace this with your ACTUAL Render URL if not using ENV
+const LOCAL_URL = 'http://localhost:5000/api';
+
+const BASE_URL = import.meta.env.PROD ? PROD_URL : LOCAL_URL;
 
 const api = axios.create({
   baseURL: BASE_URL,
