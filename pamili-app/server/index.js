@@ -51,6 +51,15 @@ app.use('/api/products', productRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
 
+// ─── Error Handling ───────────────────────────────────────
+app.use((err, req, res, next) => {
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ success: false, error: 'File size too large. Maximum limit is 10MB.' });
+  }
+  console.error('Unhandled Error:', err);
+  res.status(500).json({ success: false, error: 'Internal Server Error' });
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'PAMILI server is running 🎉' });

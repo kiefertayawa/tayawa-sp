@@ -1193,6 +1193,11 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
                   onChange={e => {
                     const file = e.target.files?.[0];
                     if (file) {
+                      if (file.size > 10 * 1024 * 1024) {
+                        toast.error('File size exceeds 10MB limit.');
+                        e.target.value = '';
+                        return;
+                      }
                       setImageFile(file);
                       setPreviewUrl(URL.createObjectURL(file));
                       setFieldErrors(prev => ({ ...prev, imageFile: false }));

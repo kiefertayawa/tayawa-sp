@@ -92,11 +92,18 @@ export default function ReviewsSection({ storeId, storeName, helpText }: Reviews
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const filesArray = Array.from(e.target.files);
-    if (imageFiles.length + filesArray.length > 3) {
+
+    const oversized = filesArray.filter(f => f.size > 10 * 1024 * 1024);
+    if (oversized.length > 0) {
+      toast.error('Some files exceed 10MB and were skipped.');
+    }
+
+    const validFiles = filesArray.filter(f => f.size <= 10 * 1024 * 1024);
+    if (imageFiles.length + validFiles.length > 3) {
       toast.error('Maximum 3 images allowed.');
       return;
     }
-    setImageFiles(prev => [...prev, ...filesArray].slice(0, 3));
+    setImageFiles(prev => [...prev, ...validFiles].slice(0, 3));
     e.target.value = ''; // reset input
   };
 
