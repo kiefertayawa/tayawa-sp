@@ -44,8 +44,8 @@ router.post('/', upload.array('images', 3), async (req, res) => {
         const results = await Promise.all(uploadPromises);
         finalImages = results.map(r => ({ url: r.url, publicId: r.public_id }));
       } catch (uploadError) {
-        console.error('Cloudinary upload error:', uploadError);
-        return res.status(500).json({ success: false, error: 'Failed to upload images' });
+        console.error('CRITICAL: Cloudinary upload failed in review route:', uploadError);
+        return res.status(500).json({ success: false, error: 'Failed to upload images to cloud' });
       }
     }
 

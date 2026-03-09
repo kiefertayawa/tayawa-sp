@@ -680,12 +680,12 @@ export default function AdminPage() {
                           {r.images && r.images.length > 0 && (
                             <div style={{ display: 'flex', gap: '6px' }}>
                               {r.images.map((img: any, i: number) => {
-                                const url = typeof img === 'string' ? img : img.url;
+                                const url = (typeof img === 'string' ? img : img?.url) || 'https://placehold.co/400x400?text=No+Photo';
                                 return (
                                   <img
                                     key={i} src={url} alt="Preview"
                                     style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover', border: '1px solid #e5e7eb' }}
-                                    onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available')}
+                                    onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=Error')}
                                   />
                                 );
                               })}
@@ -853,12 +853,12 @@ export default function AdminPage() {
                     <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '12px' }}>Attached Photos</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       {viewReviewModal.review.images.map((img: any, i: number) => {
-                        const url = typeof img === 'string' ? img : img.url;
+                        const url = (typeof img === 'string' ? img : img?.url) || 'https://placehold.co/400x400?text=Missing+Image';
                         return (
                           <img
                             key={i} src={url} alt="Full view"
                             style={{ width: '100%', borderRadius: '12px', border: '1px solid #e5e7eb', maxHeight: '400px', objectFit: 'contain', backgroundColor: '#fafafa' }}
-                            onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available')}
+                            onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=Image+Load+Error')}
                           />
                         );
                       })}

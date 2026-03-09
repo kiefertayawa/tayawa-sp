@@ -38,7 +38,6 @@ const BASE_URL = import.meta.env.VITE_API_URL ||
 
 const api = axios.create({
   baseURL: BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
 api.interceptors.request.use((config) => {
@@ -112,9 +111,7 @@ export const productService = {
     if (data.lng !== undefined) formData.append('lng', data.lng.toString());
     if (data.crowdLevel) formData.append('crowdLevel', data.crowdLevel);
 
-    return api.post<ApiResponse<Product>>('/products/submit', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    return api.post<ApiResponse<Product>>('/products/submit', formData);
   },
   getSuggestions: (query: string) => {
     if (USE_MOCK) {
@@ -187,9 +184,7 @@ export const reviewService = {
       data.images.forEach(img => formData.append('images', img));
     }
 
-    return api.post<ApiResponse<Review>>('/reviews', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    return api.post<ApiResponse<Review>>('/reviews', formData);
   },
 };
 
@@ -294,9 +289,7 @@ export const adminService = {
     if (data.peakHours) formData.append('peakHours', data.peakHours);
     if (data.offPeakHours) formData.append('offPeakHours', data.offPeakHours);
 
-    return api.post<ApiResponse<Store>>('/admin/stores', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    return api.post<ApiResponse<Store>>('/admin/stores', formData);
   },
 
   getAllStores: () => {

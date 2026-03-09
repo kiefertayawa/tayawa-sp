@@ -356,8 +356,8 @@ router.post('/stores', auth, upload.single('image'), async (req, res) => {
         image = result.url;
         imagePublicId = result.public_id;
       } catch (uploadError) {
-        console.error('Cloudinary upload error:', uploadError);
-        return res.status(500).json({ success: false, error: 'Failed to upload image' });
+        console.error('CRITICAL: Cloudinary upload failed in admin store route:', uploadError);
+        return res.status(500).json({ success: false, error: 'Failed to upload store image' });
       }
     }
 

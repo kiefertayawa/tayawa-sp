@@ -3,16 +3,18 @@ const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
 
 // Configure Cloudinary using environment variables
-if (process.env.CLOUDINARY_URL) {
-  cloudinary.config({
-    secure: true
-  });
-} else {
+// The SDK automatically picks up CLOUDINARY_URL from process.env if present.
+// We only call config to ensure 'secure' is true.
+cloudinary.config({
+  secure: true
+});
+
+// Explicitly support separate keys if they are used instead of CLOUDINARY_URL
+if (process.env.CLOUDINARY_CLOUD_NAME) {
   cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-    secure: true
+    api_secret: process.env.CLOUDINARY_API_SECRET
   });
 }
 

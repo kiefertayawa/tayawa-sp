@@ -100,8 +100,12 @@ router.post('/submit', upload.single('image'), async (req, res) => {
     const DEFAULT_IMAGE = 'https://placehold.co/400x400?text=No+Image+Available';
 
     if (!name || !storeId || !price) {
+      console.log('Validation Error - Missing Fields:', { body: req.body, hasFile: !!req.file });
       return res.status(400).json({ success: false, error: 'Name, store, and price are required' });
     }
+
+    // Ensure image is a string, even if req.body.image is malformed {}
+    let finalImage = (typeof image === 'string' && image) ? image : DEFAULT_IMAGE;
 
     // Validation: Regex for name
     const nameRegex = /^[a-zA-Z0-9\s\-\.\&\'\(\)]+$/;
@@ -124,11 +128,11 @@ router.post('/submit', upload.single('image'), async (req, res) => {
     if (req.file) {
       try {
         const result = await uploadToCloudinary(req.file.buffer, 'pamili/products');
-        image = result.url;
+        finalImage = result.url;
         imagePublicId = result.public_id;
       } catch (uploadError) {
-        console.error('Cloudinary upload error:', uploadError);
-        return res.status(500).json({ success: false, error: 'Failed to upload image' });
+        console.error('CRITICAL: Cloudinary upload failed in products route:', uploadError);
+        return res.status(500).json({ success: false, error: 'Failed to upload image to cloud' });
       }
     }
 
@@ -145,7 +149,7 @@ router.post('/submit', upload.single('image'), async (req, res) => {
     // In this unified approach, a submission is just a Product document with status: 'pending'
     const sub = await Product.create({
       name: name.trim(),
-      image: image || DEFAULT_IMAGE,
+      image: finalImage,
       imagePublicId: imagePublicId || '',
       submittedDate: new Date().toISOString(),
       crowdLevel: crowdLevel || 'not_sure',
