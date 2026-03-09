@@ -16,8 +16,10 @@ router.get('/', async (req, res) => {
   }
 });
 
+const { upload, uploadToCloudinary } = require('../middleware/upload');
+
 // POST /api/reviews — submit a new review (goes to pending)
-router.post('/', async (req, res) => {
+router.post('/', upload.array('images', 3), async (req, res) => {
   try {
     const { storeId, rating, text } = req.body;
 
@@ -28,13 +30,32 @@ router.post('/', async (req, res) => {
     const store = await Store.findById(storeId);
     if (!store) return res.status(404).json({ success: false, error: 'Store not found' });
 
+    let finalImages = [];
+
+    // Fallback: If they somehow pass old URL array
+    if (req.body.images) {
+      finalImages = Array.isArray(req.body.images) ? req.body.images : [req.body.images];
+    }
+
+    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+      finalImages = []; // prioritize real file uploads
+      try {
+        const uploadPromises = req.files.map(file => uploadToCloudinary(file.buffer, 'pamili/reviews'));
+        const results = await Promise.all(uploadPromises);
+        finalImages = results.map(r => ({ url: r.url, publicId: r.public_id }));
+      } catch (uploadError) {
+        console.error('Cloudinary upload error:', uploadError);
+        return res.status(500).json({ success: false, error: 'Failed to upload images' });
+      }
+    }
+
     const review = await Review.create({
       storeId,
       rating: parseInt(rating),
       text,
       status: 'pending',
       userName: 'Anonymous User',
-      images: Array.isArray(req.body.images) ? req.body.images : [],
+      images: finalImages,
       date: new Date().toISOString()
     });
     res.status(201).json({ success: true, data: review, message: 'Review submitted for moderation' });

@@ -227,12 +227,19 @@ router.patch('/products/:id/approve', auth, async (req, res) => {
       // Preserve image if existing has none
       if (!existingProduct.image && pending.image) {
         existingProduct.image = pending.image;
+        existingProduct.imagePublicId = pending.imagePublicId;
       }
 
       await existingProduct.save();
 
-      // Delete the pending submission as it's now merged into the existing approved doc
+      // Delete the pending submission
       await Product.findByIdAndDelete(pending._id);
+
+      // Clean up Cloudinary: if pending had an image but it wasn't used/merged
+      // (because the existing product already had an image)
+      if (pending.imagePublicId && existingProduct.imagePublicId !== pending.imagePublicId) {
+        await deleteFromCloudinary(pending.imagePublicId);
+      }
 
       res.json({ success: true, data: existingProduct, message: 'Merged into existing approved product' });
     } else {
@@ -252,12 +259,19 @@ router.patch('/products/:id/approve', auth, async (req, res) => {
 // PATCH /api/admin/products/:id/reject
 router.patch('/products/:id/reject', auth, async (req, res) => {
   try {
-    const rejected = await Product.findOneAndUpdate(
-      { _id: req.params.id, status: 'pending' },
-      { status: 'rejected' },
-      { new: true }
-    );
+    const rejected = await Product.findOne({ _id: req.params.id, status: 'pending' });
     if (!rejected) return res.status(404).json({ success: false, error: 'Pending submission not found' });
+
+    // Delete from Cloudinary if image exists
+    if (rejected.imagePublicId) {
+      await deleteFromCloudinary(rejected.imagePublicId);
+    }
+
+    rejected.status = 'rejected';
+    rejected.image = ''; // Clear URL too since file is gone
+    rejected.imagePublicId = '';
+    await rejected.save();
+
     res.json({ success: true, data: rejected });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -301,24 +315,50 @@ router.patch('/reviews/:id/approve', auth, async (req, res) => {
 // PATCH /api/admin/reviews/:id/reject
 router.patch('/reviews/:id/reject', auth, async (req, res) => {
   try {
-    const review = await Review.findByIdAndUpdate(
-      req.params.id, { status: 'rejected' }, { new: true }
-    );
+    const review = await Review.findById(req.params.id);
     if (!review) return res.status(404).json({ success: false, error: 'Not found' });
+
+    // Delete multiple images from Cloudinary
+    if (review.images && review.images.length > 0) {
+      const deletePromises = review.images.map(img => {
+        if (img.publicId) return deleteFromCloudinary(img.publicId);
+      });
+      await Promise.all(deletePromises);
+    }
+
+    review.status = 'rejected';
+    review.images = []; // Clear array since files are gone
+    await review.save();
+
     res.json({ success: true, data: review });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
+const { upload, uploadToCloudinary, deleteFromCloudinary } = require('../middleware/upload');
+
 // ─── Store Management ────────────────────────────────
 // POST /api/admin/stores
-router.post('/stores', auth, async (req, res) => {
+router.post('/stores', auth, upload.single('image'), async (req, res) => {
   try {
-    const { name, address, lat, lng, image, peakHours, offPeakHours } = req.body;
+    const { name, address, lat, lng, peakHours, offPeakHours } = req.body;
+    let image = req.body.image;
+    let imagePublicId = '';
 
     if (!name || !address || lat === undefined || lng === undefined) {
       return res.status(400).json({ success: false, error: 'Name, address, lat, and lng are required' });
+    }
+
+    if (req.file) {
+      try {
+        const result = await uploadToCloudinary(req.file.buffer, 'pamili/stores');
+        image = result.url;
+        imagePublicId = result.public_id;
+      } catch (uploadError) {
+        console.error('Cloudinary upload error:', uploadError);
+        return res.status(500).json({ success: false, error: 'Failed to upload image' });
+      }
     }
 
     const store = await Store.create({
@@ -326,6 +366,7 @@ router.post('/stores', auth, async (req, res) => {
       address,
       location: { lat: parseFloat(lat), lng: parseFloat(lng) },
       image: image || '',
+      imagePublicId: imagePublicId || '',
       peakHours: peakHours || '',
       offPeakHours: offPeakHours || '',
       rating: 0,
@@ -346,7 +387,32 @@ router.delete('/stores/:id', auth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Store not found' });
     }
 
-    // Also delete associated products and reviews
+    // Delete image from Cloudinary
+    if (store.imagePublicId) {
+      await deleteFromCloudinary(store.imagePublicId);
+    }
+
+    // Find and delete images for all associated products
+    const associatedProducts = await Product.find({ 'prices.storeId': req.params.id });
+    for (const prod of associatedProducts) {
+      if (prod.imagePublicId) {
+        await deleteFromCloudinary(prod.imagePublicId);
+      }
+    }
+
+    // Find and delete images for all associated reviews
+    const associatedReviews = await Review.find({ storeId: req.params.id });
+    for (const rev of associatedReviews) {
+      if (rev.images && rev.images.length > 0) {
+        for (const img of rev.images) {
+          if (img.publicId) {
+            await deleteFromCloudinary(img.publicId);
+          }
+        }
+      }
+    }
+
+    // Now delete from database
     await Promise.all([
       Product.deleteMany({ 'prices.storeId': req.params.id }),
       Review.deleteMany({ storeId: req.params.id })

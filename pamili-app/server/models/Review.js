@@ -5,7 +5,10 @@ const reviewSchema = new mongoose.Schema({
   userName: { type: String, default: 'Anonymous User' },
   rating: { type: Number, required: true, min: 1, max: 5 },
   text: { type: String, maxlength: 500 },
-  images: [String],
+  images: [{
+    url: String,
+    publicId: String
+  }],
   status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
   date: { type: String, default: () => new Date().toISOString() },
 }, { timestamps: true });

@@ -16,6 +16,16 @@ export default function ReviewsSection({ storeId, storeName, helpText }: Reviews
   const [hoverRating, setHoverRating] = useState(0);
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const formatFileName = (name: string) => {
+    if (name.length <= 20) return name;
+    const extIndex = name.lastIndexOf('.');
+    if (extIndex !== -1 && name.length - extIndex <= 5) {
+      const ext = name.substring(extIndex);
+      return name.substring(0, 15) + '...' + ext;
+    }
+    return name.substring(0, 17) + '...';
+  };
   const formRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,8 +35,7 @@ export default function ReviewsSection({ storeId, storeName, helpText }: Reviews
   }, [showForm]);
 
   // Image handling
-  const [imageUrls, setImageUrls] = useState<string[]>([]);
-  const [currentUrl, setCurrentUrl] = useState('');
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
 
   // Confirmation Modal for Cancel
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -53,7 +62,7 @@ export default function ReviewsSection({ storeId, storeName, helpText }: Reviews
     }
 
     setSubmitting(true);
-    const ok = await submitReview({ rating, text, images: imageUrls });
+    const ok = await submitReview({ rating, text, images: imageFiles });
     setSubmitting(false);
 
     if (ok) {
@@ -68,27 +77,27 @@ export default function ReviewsSection({ storeId, storeName, helpText }: Reviews
   const resetForm = () => {
     setRating(0);
     setText('');
-    setImageUrls([]);
-    setCurrentUrl('');
+    setImageFiles([]);
     setShowCancelConfirm(false);
   };
 
   const handleCancelClick = () => {
-    if (rating > 0 || text.trim() || imageUrls.length > 0) {
+    if (rating > 0 || text.trim() || imageFiles.length > 0) {
       setShowCancelConfirm(true);
     } else {
       setShowForm(false);
     }
   };
 
-  const addImageUrl = () => {
-    if (!currentUrl.trim()) return;
-    if (imageUrls.length >= 3) {
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const filesArray = Array.from(e.target.files);
+    if (imageFiles.length + filesArray.length > 3) {
       toast.error('Maximum 3 images allowed.');
       return;
     }
-    setImageUrls(prev => [...prev, currentUrl.trim()]);
-    setCurrentUrl('');
+    setImageFiles(prev => [...prev, ...filesArray].slice(0, 3));
+    e.target.value = ''; // reset input
   };
 
   return (
@@ -268,31 +277,47 @@ export default function ReviewsSection({ storeId, storeName, helpText }: Reviews
 
             <div style={{ marginBottom: '24px' }}>
               <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <span>Add Photos (URL) <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: '0.8rem' }}>(optional)</span></span>
-                <span style={{ fontWeight: 400, color: imageUrls.length >= 3 ? '#dc2626' : '#9ca3af', fontSize: '0.75rem' }}>
-                  {imageUrls.length} / 3 photos
+                <span>Add Photos <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: '0.8rem' }}>(optional)</span></span>
+                <span style={{ fontWeight: 400, color: imageFiles.length >= 3 ? '#dc2626' : '#9ca3af', fontSize: '0.75rem' }}>
+                  {imageFiles.length} / 3 photos
                 </span>
               </label>
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', alignItems: 'stretch' }}>
-                <input
-                  type="text" value={currentUrl} onChange={e => setCurrentUrl(e.target.value)}
-                  placeholder="https://example.com/image.jpg"
-                  style={{ flex: 1, padding: '10px 14px', fontSize: '0.875rem', border: '1.5px solid #e5e7eb', borderRadius: '8px', outline: 'none' }}
-                />
-                <button
-                  type="button" onClick={addImageUrl}
-                  style={{ padding: '0 20px', backgroundColor: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                >
-                  Add
-                </button>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', alignItems: 'center' }}>
+                <label style={{
+                  cursor: imageFiles.length >= 3 ? 'not-allowed' : 'pointer',
+                  padding: '10px 18px',
+                  backgroundColor: imageFiles.length >= 3 ? '#f3f4f6' : '#fff',
+                  border: '1.5px solid #e5e7eb',
+                  borderRadius: '8px',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  color: imageFiles.length >= 3 ? '#9ca3af' : '#374151',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}>
+                  <span style={{ fontFamily: 'inherit' }}>Choose Photos</span>
+                  <input
+                    type="file" multiple accept="image/*" onChange={handleImageSelect}
+                    disabled={imageFiles.length >= 3}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+                <div style={{ fontSize: '0.875rem', color: '#6b7280', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {imageFiles.length > 0
+                    ? imageFiles.map(f => formatFileName(f.name)).join(', ')
+                    : 'No files chosen.'}
+                </div>
               </div>
-              {imageUrls.length > 0 && (
+              {imageFiles.length > 0 && (
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                  {imageUrls.map((url, i) => (
+                  {imageFiles.map((file, i) => (
                     <div key={i} style={{ position: 'relative' }}>
-                      <img src={url} alt="Draft" style={{ width: '110px', height: '110px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #e5e7eb' }} onError={(e) => e.currentTarget.src = 'https://placehold.co/110x110?text=Error'} />
+                      <img src={URL.createObjectURL(file)} alt="Draft" style={{ width: '110px', height: '110px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #e5e7eb' }} />
                       <button
-                        type="button" onClick={() => setImageUrls(prev => prev.filter((_, idx) => idx !== i))}
+                        type="button" onClick={() => setImageFiles(prev => prev.filter((_, idx) => idx !== i))}
                         style={{ position: 'absolute', top: '-8px', right: '-8px', backgroundColor: '#dc2626', color: '#fff', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', transition: 'transform 0.1s' }}
                       >
                         <X style={{ width: 14, height: 14 }} />
@@ -438,13 +463,16 @@ function ReviewCard({ review }: { review: any }) {
 
       {review.images && review.images.length > 0 && (
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {review.images.map((img: string, i: number) => (
-            <img
-              key={i} src={img} alt="Review"
-              style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e5e7eb' }}
-              onError={(e) => e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available'}
-            />
-          ))}
+          {review.images.map((img: any, i: number) => {
+            const url = typeof img === 'string' ? img : img.url;
+            return (
+              <img
+                key={i} src={url} alt="Review"
+                style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available')}
+              />
+            );
+          })}
         </div>
       )}
     </div>

@@ -679,13 +679,16 @@ export default function AdminPage() {
                           </span>
                           {r.images && r.images.length > 0 && (
                             <div style={{ display: 'flex', gap: '6px' }}>
-                              {r.images.map((img, i) => (
-                                <img
-                                  key={i} src={img} alt="Preview"
-                                  style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover', border: '1px solid #e5e7eb' }}
-                                  onError={(e) => e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available'}
-                                />
-                              ))}
+                              {r.images.map((img: any, i: number) => {
+                                const url = typeof img === 'string' ? img : img.url;
+                                return (
+                                  <img
+                                    key={i} src={url} alt="Preview"
+                                    style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover', border: '1px solid #e5e7eb' }}
+                                    onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available')}
+                                  />
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -849,13 +852,16 @@ export default function AdminPage() {
                   <div>
                     <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '12px' }}>Attached Photos</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {viewReviewModal.review.images.map((img: string, i: number) => (
-                        <img
-                          key={i} src={img} alt="Full view"
-                          style={{ width: '100%', borderRadius: '12px', border: '1px solid #e5e7eb', maxHeight: '400px', objectFit: 'contain', backgroundColor: '#fafafa' }}
-                          onError={(e) => e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available'}
-                        />
-                      ))}
+                      {viewReviewModal.review.images.map((img: any, i: number) => {
+                        const url = typeof img === 'string' ? img : img.url;
+                        return (
+                          <img
+                            key={i} src={url} alt="Full view"
+                            style={{ width: '100%', borderRadius: '12px', border: '1px solid #e5e7eb', maxHeight: '400px', objectFit: 'contain', backgroundColor: '#fafafa' }}
+                            onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available')}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -1040,9 +1046,21 @@ interface AddStoreModalProps {
 }
 
 function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
-  const [form, setForm] = useState({ name: '', address: '', lat: '', lng: '', image: '', peakHours: '', offPeakHours: '' });
+  const [form, setForm] = useState({ name: '', address: '', lat: '', lng: '', peakHours: '', offPeakHours: '' });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
+
+  const formatFileName = (name: string) => {
+    if (name.length <= 20) return name;
+    const extIndex = name.lastIndexOf('.');
+    if (extIndex !== -1 && name.length - extIndex <= 5) {
+      const ext = name.substring(extIndex);
+      return name.substring(0, 15) + '...' + ext;
+    }
+    return name.substring(0, 17) + '...';
+  };
 
   // Automatically pick current location on open
   useEffect(() => {
@@ -1059,7 +1077,7 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
     e.preventDefault();
     const newFieldErrors: Record<string, boolean> = {};
 
-    if (!form.image.trim()) newFieldErrors.image = true;
+    if (!imageFile) newFieldErrors.imageFile = true;
     if (!form.name.trim()) newFieldErrors.name = true;
     if (!form.address.trim()) newFieldErrors.address = true;
     if (!form.lat) newFieldErrors.lat = true;
@@ -1093,7 +1111,7 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
       address: form.address.trim(),
       lat: parseFloat(form.lat),
       lng: parseFloat(form.lng),
-      image: form.image.trim(),
+      image: imageFile as File,
       peakHours: form.peakHours.trim(),
       offPeakHours: form.offPeakHours.trim()
     });
@@ -1101,7 +1119,9 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
     if (ok) {
       toast.success('Store added successfully!');
       onClose();
-      setForm({ name: '', address: '', lat: '', lng: '', image: '', peakHours: '', offPeakHours: '' });
+      setForm({ name: '', address: '', lat: '', lng: '', peakHours: '', offPeakHours: '' });
+      setImageFile(null);
+      setPreviewUrl('');
       setFieldErrors({});
     } else {
       toast.error('Failed to add store.');
@@ -1144,28 +1164,68 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
           </button>
         </div>
         <form onSubmit={handleSubmit} noValidate style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-          {/* Image */}
+          {/* Image Upload */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
-              Image URL <span style={{ color: '#8B1538' }}>*</span>
+              Store Image <span style={{ color: '#8B1538' }}>*</span>
             </label>
-            <input
-              type="text" value={form.image}
-              onChange={e => {
-                setForm({ ...form, image: e.target.value });
-                if (e.target.value.trim()) setFieldErrors(prev => ({ ...prev, image: false }));
-              }}
-              placeholder="https://example.com/store.jpg"
-              style={inputStyle('image')}
-            />
-            {fieldErrors.image && <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>This field is required!</p>}
-            <div style={{ marginTop: '12px', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden', height: '140px', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <label style={{
+                cursor: 'pointer',
+                padding: '10px 18px',
+                backgroundColor: '#fff',
+                border: `1px solid ${fieldErrors.imageFile ? '#dc2626' : '#e5e7eb'}`,
+                borderRadius: '8px',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: '#374151',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                whiteSpace: 'nowrap'
+              }}>
+                <span style={{ fontFamily: 'inherit' }}>Choose File</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setImageFile(file);
+                      setPreviewUrl(URL.createObjectURL(file));
+                      setFieldErrors(prev => ({ ...prev, imageFile: false }));
+                    }
+                  }}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              <div style={{ fontSize: '0.875rem', color: '#6b7280', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {imageFile ? formatFileName(imageFile.name) : 'No file chosen.'}
+              </div>
+            </div>
+            {fieldErrors.imageFile && <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>An image file is required!</p>}
+            <div style={{ position: 'relative', marginTop: '12px', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden', height: '140px', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <img
-                src={form.image.trim() || 'https://placehold.co/400x400?text=No+Image+Available'}
+                src={previewUrl || 'https://placehold.co/400x400?text=No+Image+Available'}
                 alt="Preview"
                 style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
                 onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=Invalid+Image+Link')}
               />
+              {imageFile && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImageFile(null);
+                    setPreviewUrl('');
+                    setFieldErrors(prev => ({ ...prev, imageFile: true }));
+                  }}
+                  style={{ position: 'absolute', top: '8px', right: '8px', backgroundColor: '#dc2626', color: '#fff', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}
+                >
+                  <X style={{ width: 14, height: 14 }} />
+                </button>
+              )}
             </div>
           </div>
 

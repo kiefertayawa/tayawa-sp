@@ -78,7 +78,7 @@ export const productService = {
     name: string;
     storeId: string;
     price: number;
-    image: string;
+    image: string | File;
     lat?: number;
     lng?: number;
     crowdLevel?: 'low' | 'medium' | 'high' | 'not_sure';
@@ -88,7 +88,7 @@ export const productService = {
       const pending: Product = {
         _id: `pend-${Date.now()}`,
         name: data.name,
-        image: data.image,
+        image: typeof data.image === 'string' ? data.image : 'https://placehold.co/400x400?text=Mock+Image',
         crowdLevel: data.crowdLevel || 'low',
         prices: [{
           storeId: data.storeId,
@@ -103,7 +103,18 @@ export const productService = {
       };
       return mockResponse(pending);
     }
-    return api.post<ApiResponse<Product>>('/products/submit', data);
+    const formData = new FormData();
+    formData.append('name', data.name);
+    formData.append('storeId', data.storeId);
+    formData.append('price', data.price.toString());
+    if (data.image) formData.append('image', data.image);
+    if (data.lat !== undefined) formData.append('lat', data.lat.toString());
+    if (data.lng !== undefined) formData.append('lng', data.lng.toString());
+    if (data.crowdLevel) formData.append('crowdLevel', data.crowdLevel);
+
+    return api.post<ApiResponse<Product>>('/products/submit', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
   },
   getSuggestions: (query: string) => {
     if (USE_MOCK) {
@@ -155,7 +166,7 @@ export const reviewService = {
     return api.get<ApiResponse<Review[]>>(`/reviews?storeId=${storeId}`);
   },
 
-  submit: (data: { storeId: string; rating: number; text: string; images?: string[] }) => {
+  submit: (data: { storeId: string; rating: number; text: string; images?: (string | File)[] }) => {
     if (USE_MOCK) {
       const review: Review = {
         _id: `rev-${Date.now()}`,
@@ -163,10 +174,22 @@ export const reviewService = {
         date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
         status: 'pending',
         ...data,
+        images: data.images?.map(i => typeof i === 'string' ? { url: i, publicId: 'mock-id' } : { url: 'https://placehold.co/400x400?text=Mock', publicId: 'mock-id' }) || [],
       };
       return mockResponse(review);
     }
-    return api.post<ApiResponse<Review>>('/reviews', data);
+
+    const formData = new FormData();
+    formData.append('storeId', data.storeId);
+    formData.append('rating', data.rating.toString());
+    formData.append('text', data.text);
+    if (data.images) {
+      data.images.forEach(img => formData.append('images', img));
+    }
+
+    return api.post<ApiResponse<Review>>('/reviews', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
   },
 };
 
@@ -245,14 +268,14 @@ export const adminService = {
     }>>('/admin/stats');
   },
 
-  addStore: (data: { name: string; address: string; lat: number; lng: number; image: string; peakHours?: string; offPeakHours?: string }) => {
+  addStore: (data: { name: string; address: string; lat: number; lng: number; image: string | File; peakHours?: string; offPeakHours?: string }) => {
     if (USE_MOCK) {
       const store: Store = {
         _id: `store-${Date.now()}`,
         name: data.name,
         address: data.address,
         location: { lat: data.lat, lng: data.lng },
-        image: data.image,
+        image: typeof data.image === 'string' ? data.image : 'https://placehold.co/400x400?text=Mock',
         peakHours: data.peakHours || '',
         offPeakHours: data.offPeakHours || '',
         rating: 0,
@@ -261,7 +284,19 @@ export const adminService = {
       };
       return mockResponse(store);
     }
-    return api.post<ApiResponse<Store>>('/admin/stores', data);
+
+    const formData = new FormData();
+    formData.append('name', data.name);
+    formData.append('address', data.address);
+    formData.append('lat', data.lat.toString());
+    formData.append('lng', data.lng.toString());
+    if (data.image) formData.append('image', data.image);
+    if (data.peakHours) formData.append('peakHours', data.peakHours);
+    if (data.offPeakHours) formData.append('offPeakHours', data.offPeakHours);
+
+    return api.post<ApiResponse<Store>>('/admin/stores', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
   },
 
   getAllStores: () => {

@@ -16,6 +16,7 @@ const priceHistorySchema = new mongoose.Schema({
 const productSchema = new mongoose.Schema({
   name: { type: String, required: true },
   image: { type: String, default: '' },
+  imagePublicId: { type: String, default: '' },
   prices: [priceEntrySchema],
   priceHistory: [priceHistorySchema],
   status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },

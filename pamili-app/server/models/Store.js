@@ -9,6 +9,7 @@ const storeSchema = new mongoose.Schema({
   peakHours: { type: String, default: '' },
   offPeakHours: { type: String, default: '' },
   image: { type: String, default: '' },
+  imagePublicId: { type: String, default: '' },
   lastCrowdLevel: { type: String, enum: ['low', 'medium', 'high'] },
   lastCrowdTime: { type: Date },
 }, { timestamps: true });

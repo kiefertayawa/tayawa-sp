@@ -63,7 +63,10 @@ export interface Review {
   rating: number;
   date: string;
   text: string;
-  images?: string[];
+  images?: {
+    url: string;
+    publicId: string;
+  }[];
   storeResponse?: string;
   status?: 'pending' | 'approved' | 'rejected';
 }

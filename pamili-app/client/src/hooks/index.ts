@@ -175,7 +175,7 @@ export function useReviews(storeId: string | undefined) {
     };
   }, [fetchReviews]);
 
-  const submitReview = async (data: { rating: number; text: string; images?: string[] }) => {
+  const submitReview = async (data: { rating: number; text: string; images?: (string | File)[] }) => {
     if (!storeId) return false;
     try {
       await reviewService.submit({ storeId, ...data });
@@ -271,7 +271,7 @@ export function usePendingItems(isAdmin: boolean = true) {
     } catch { return false; }
   };
 
-  const addStore = async (data: { name: string; address: string; lat: number; lng: number; image: string; peakHours?: string; offPeakHours?: string }) => {
+  const addStore = async (data: { name: string; address: string; lat: number; lng: number; image: string | File; peakHours?: string; offPeakHours?: string }) => {
     try {
       await adminService.addStore(data);
       await load(true);

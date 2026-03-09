@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
 const Store = require('../models/Store');
-const upload = require('../middleware/upload');
 
 // GET /api/products — get all approved products
 router.get('/', async (req, res) => {
@@ -90,10 +89,14 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+const { upload, uploadToCloudinary } = require('../middleware/upload');
+
 // POST /api/products/submit — community submits a product price
-router.post('/submit', async (req, res) => {
+// Uses multer 'upload.single('image')' to receive multipart/form-data
+router.post('/submit', upload.single('image'), async (req, res) => {
   try {
-    const { name, storeId, price, image, lat, lng, crowdLevel } = req.body;
+    const { name, storeId, price, lat, lng, crowdLevel } = req.body;
+    let image = req.body.image; // fallback if they somehow sent URL string
     const DEFAULT_IMAGE = 'https://placehold.co/400x400?text=No+Image+Available';
 
     if (!name || !storeId || !price) {
@@ -115,6 +118,20 @@ router.post('/submit', async (req, res) => {
     const store = await Store.findById(storeId);
     if (!store) return res.status(404).json({ success: false, error: 'Store not found' });
 
+    let imagePublicId = '';
+
+    // Handle Image Upload using Cloudinary (if a file was provided)
+    if (req.file) {
+      try {
+        const result = await uploadToCloudinary(req.file.buffer, 'pamili/products');
+        image = result.url;
+        imagePublicId = result.public_id;
+      } catch (uploadError) {
+        console.error('Cloudinary upload error:', uploadError);
+        return res.status(500).json({ success: false, error: 'Failed to upload image' });
+      }
+    }
+
     // Geofencing Verification (Determine if we trust this user's crowd level data)
     let locationVerified = false;
     if (lat !== undefined && lng !== undefined) {
@@ -128,18 +145,19 @@ router.post('/submit', async (req, res) => {
     // In this unified approach, a submission is just a Product document with status: 'pending'
     const sub = await Product.create({
       name: name.trim(),
-      image: image ? image.trim() : DEFAULT_IMAGE,
-      status: 'pending',
+      image: image || DEFAULT_IMAGE,
+      imagePublicId: imagePublicId || '',
+      submittedDate: new Date().toISOString(),
       crowdLevel: crowdLevel || 'not_sure',
       locationVerified,
+      status: 'pending',
       prices: [{
         storeId,
         storeName: store.name,
         price: priceNum,
         inStock: true,
         lastUpdated: new Date().toISOString().split('T')[0]
-      }],
-      submittedDate: new Date().toISOString()
+      }]
     });
 
     res.status(201).json({

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Link as LinkIcon, Users, MapPin } from 'lucide-react';
+import { X, Users, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { productService, storeService } from '../../../services/api';
 import type { Store } from '../../../types';
@@ -13,12 +13,24 @@ const DEFAULT_IMAGE = 'https://placehold.co/400x400?text=No+Image+Available';
 
 export default function SubmitProductForm({ isOpen, onClose }: SubmitProductFormProps) {
   const [stores, setStores] = useState<Store[]>([]);
-  const [form, setForm] = useState({ productName: '', storeId: '', price: '', imageUrl: '', crowdLevel: 'not_sure' as 'low' | 'medium' | 'high' | 'not_sure' });
+  const [form, setForm] = useState({ productName: '', storeId: '', price: '', crowdLevel: 'not_sure' as 'low' | 'medium' | 'high' | 'not_sure' });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
+
+  const formatFileName = (name: string) => {
+    if (name.length <= 20) return name;
+    const extIndex = name.lastIndexOf('.');
+    if (extIndex !== -1 && name.length - extIndex <= 5) {
+      const ext = name.substring(extIndex);
+      return name.substring(0, 15) + '...' + ext;
+    }
+    return name.substring(0, 17) + '...';
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -72,7 +84,7 @@ export default function SubmitProductForm({ isOpen, onClose }: SubmitProductForm
     if (!form.productName.trim()) newFieldErrors.productName = true;
     if (!form.storeId) newFieldErrors.storeId = true;
     if (!form.price) newFieldErrors.price = true;
-    if (!form.imageUrl.trim()) newFieldErrors.imageUrl = true;
+    if (!imageFile) newFieldErrors.imageFile = true;
 
     if (Object.keys(newFieldErrors).length > 0) {
       setFieldErrors(newFieldErrors);
@@ -96,7 +108,7 @@ export default function SubmitProductForm({ isOpen, onClose }: SubmitProductForm
         name: form.productName.trim(),
         storeId: form.storeId,
         price: priceNum,
-        image: form.imageUrl.trim() || DEFAULT_IMAGE,
+        image: imageFile as File,
         lat: location?.lat,
         lng: location?.lng,
         crowdLevel: form.crowdLevel,
@@ -104,7 +116,9 @@ export default function SubmitProductForm({ isOpen, onClose }: SubmitProductForm
       toast.success('Product submitted for review!', {});
 
       onClose();
-      setForm({ productName: '', storeId: '', price: '', imageUrl: '', crowdLevel: 'not_sure' });
+      setForm({ productName: '', storeId: '', price: '', crowdLevel: 'not_sure' });
+      setImageFile(null);
+      setPreviewUrl('');
       setLocation(null);
     } catch (err: any) {
       const msg = err?.response?.data?.error || 'Submission failed. Please check if the backend is running.';
@@ -178,55 +192,71 @@ export default function SubmitProductForm({ isOpen, onClose }: SubmitProductForm
             {/* Scrollable body */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px 8px' }}>
 
-              {/* Image Link */}
+              {/* Image Upload */}
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
-                  Product Image Link (URL) <span style={{ color: '#8B1538' }}>*</span>
+                  Product Image <span style={{ color: '#8B1538' }}>*</span>
                 </label>
-                <div style={{ position: 'relative' }}>
-                  <LinkIcon
-                    style={{
-                      position: 'absolute',
-                      left: '12px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      width: 16,
-                      height: 16,
-                      color: '#9ca3af',
-                    }}
-                  />
-                  <input
-                    type="url"
-                    required
-                    placeholder="https://example.com/image.jpg"
-                    value={form.imageUrl}
-                    onChange={e => {
-                      setForm({ ...form, imageUrl: e.target.value });
-                      if (e.target.value.trim()) setFieldErrors(prev => ({ ...prev, imageUrl: false }));
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px 10px 38px',
-                      fontSize: '0.875rem',
-                      border: `1px solid ${fieldErrors.imageUrl ? '#dc2626' : '#e5e7eb'}`,
-                      borderRadius: '10px',
-                      backgroundColor: fieldErrors.imageUrl ? '#fef2f2' : '#f9fafb',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                    }}
-                  />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <label style={{
+                    cursor: 'pointer',
+                    padding: '10px 18px',
+                    backgroundColor: '#fff',
+                    border: `1px solid ${fieldErrors.imageFile ? '#dc2626' : '#e5e7eb'}`,
+                    borderRadius: '8px',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: '#374151',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    <span style={{ fontFamily: 'inherit' }}>Choose File</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      required
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setImageFile(file);
+                          setPreviewUrl(URL.createObjectURL(file));
+                          setFieldErrors(prev => ({ ...prev, imageFile: false }));
+                        }
+                      }}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                  <div style={{ fontSize: '0.875rem', color: '#6b7280', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {imageFile ? formatFileName(imageFile.name) : 'No file chosen.'}
+                  </div>
                 </div>
-                {fieldErrors.imageUrl && (
-                  <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>This field is required!</p>
+                {fieldErrors.imageFile && (
+                  <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>An image file is required!</p>
                 )}
-                <div style={{ marginTop: '12px', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden', height: '140px', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ position: 'relative', marginTop: '12px', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden', height: '140px', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <img
-                    key={form.imageUrl}
-                    src={form.imageUrl.trim() || DEFAULT_IMAGE}
+                    src={previewUrl || DEFAULT_IMAGE}
                     alt="Preview"
                     style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
-                    onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=Invalid+Image+Link')}
+                    onError={(e) => (e.currentTarget.src = DEFAULT_IMAGE)}
                   />
+                  {imageFile && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImageFile(null);
+                        setPreviewUrl('');
+                        setFieldErrors(prev => ({ ...prev, imageFile: true }));
+                      }}
+                      style={{ position: 'absolute', top: '8px', right: '8px', backgroundColor: '#dc2626', color: '#fff', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}
+                    >
+                      <X style={{ width: 14, height: 14 }} />
+                    </button>
+                  )}
                 </div>
               </div>
 

@@ -1,24 +1,63 @@
 const multer = require('multer');
-const path   = require('path');
+const cloudinary = require('cloudinary').v2;
+const streamifier = require('streamifier');
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
-  filename:    (req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, unique + path.extname(file.originalname));
-  },
-});
+// Configure Cloudinary using environment variables
+if (process.env.CLOUDINARY_URL) {
+  cloudinary.config({
+    secure: true
+  });
+} else {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true
+  });
+}
 
-const fileFilter = (req, file, cb) => {
-  const allowed = /jpeg|jpg|png|webp/;
-  const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-  const mime = allowed.test(file.mimetype);
-  if (ext && mime) cb(null, true);
-  else cb(new Error('Only image files are allowed'));
+// Use memory storage for multer
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+/**
+ * Uploads a buffer to Cloudinary and returns the secure URL and public_id
+ * @param {Buffer} buffer - The file buffer
+ * @param {String} folder - The folder to upload to
+ * @returns {Promise<Object>} { url, public_id }
+ */
+const uploadToCloudinary = (buffer, folder = 'pamili') => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { folder },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve({
+          url: result.secure_url,
+          public_id: result.public_id
+        });
+      }
+    );
+    streamifier.createReadStream(buffer).pipe(uploadStream);
+  });
 };
 
-module.exports = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
-});
+/**
+ * Deletes an image from Cloudinary
+ * @param {String} public_id - The public ID of the resource
+ * @returns {Promise}
+ */
+const deleteFromCloudinary = async (public_id) => {
+  if (!public_id) return;
+  try {
+    return await cloudinary.uploader.destroy(public_id);
+  } catch (error) {
+    console.error('Cloudinary destruction error:', error);
+  }
+};
+
+module.exports = {
+  upload,
+  uploadToCloudinary,
+  deleteFromCloudinary
+};
