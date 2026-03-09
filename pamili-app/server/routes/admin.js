@@ -346,8 +346,13 @@ router.post('/stores', auth, upload.single('image'), async (req, res) => {
     let image = req.body.image;
     let imagePublicId = '';
 
-    if (!name || !address || lat === undefined || lng === undefined) {
-      return res.status(400).json({ success: false, error: 'Name, address, lat, and lng are required' });
+    if (!name || !address || !lat || !lng) {
+      console.error('Add Store Validation Failed. Received:', Object.keys(req.body));
+      return res.status(400).json({
+        success: false,
+        error: 'Name, address, and location are required',
+        debug: { receivedBody: Object.keys(req.body), hasFile: !!req.file }
+      });
     }
 
     if (req.file) {

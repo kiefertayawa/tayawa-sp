@@ -24,7 +24,12 @@ router.post('/', upload.array('images', 3), async (req, res) => {
     const { storeId, rating, text } = req.body;
 
     if (!storeId || !rating) {
-      return res.status(400).json({ success: false, error: 'storeId and rating are required' });
+      console.error('Review Validation Failed. Received:', Object.keys(req.body));
+      return res.status(400).json({
+        success: false,
+        error: 'storeId and rating are required',
+        debug: { receivedBody: Object.keys(req.body), hasFile: !!req.files }
+      });
     }
 
     const store = await Store.findById(storeId);

@@ -27,10 +27,9 @@ const allowedOrigins = [
   'http://127.0.0.1:5175',
   ...(process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',') : []),
 ];
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow if no origin (e.g. server-to-server), if in allowedOrigins list, 
-    // or if the origin is a deployed Vercel app.
     if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
@@ -39,8 +38,21 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// Use conditional parsing to ensure global parsers don't interfere with multipart photo uploads
+app.use((req, res, next) => {
+  if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
+    return next();
+  }
+  express.json({ limit: '10mb' })(req, res, next);
+});
+
+app.use((req, res, next) => {
+  if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
+    return next();
+  }
+  express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);
+});
 
 // Serve uploaded images as static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

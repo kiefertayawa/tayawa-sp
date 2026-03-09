@@ -100,8 +100,18 @@ router.post('/submit', upload.single('image'), async (req, res) => {
     const DEFAULT_IMAGE = 'https://placehold.co/400x400?text=No+Image+Available';
 
     if (!name || !storeId || !price) {
-      console.log('Validation Error - Missing Fields:', { body: req.body, hasFile: !!req.file });
-      return res.status(400).json({ success: false, error: 'Name, store, and price are required' });
+      // Create a detailed error message for debugging
+      const missing = [];
+      if (!name) missing.push('name');
+      if (!storeId) missing.push('storeId');
+      if (!price) missing.push('price');
+
+      console.error('Validation Failure:', { received: Object.keys(req.body), missing, hasFile: !!req.file });
+      return res.status(400).json({
+        success: false,
+        error: `Missing required fields: ${missing.join(', ')}`,
+        debug: { receivedBody: Object.keys(req.body), hasFile: !!req.file }
+      });
     }
 
     // Ensure image is a string, even if req.body.image is malformed {}
