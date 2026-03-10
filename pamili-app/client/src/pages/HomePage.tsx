@@ -275,32 +275,49 @@ export default function HomePage() {
         </div>
 
 
-        {/* Store grid */}
-        {loading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-            {[...Array(6)].map((_, i) => (
-              <div key={i} style={{ backgroundColor: '#fff', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
-                <div style={{ height: 200, backgroundColor: '#e5e7eb' }} />
-                <div style={{ padding: '16px' }}>
-                  <div style={{ height: 16, backgroundColor: '#e5e7eb', borderRadius: 6, marginBottom: 10, width: '70%' }} />
-                  <div style={{ height: 12, backgroundColor: '#f3f4f6', borderRadius: 6, marginBottom: 8, width: '50%' }} />
-                  <div style={{ height: 12, backgroundColor: '#f3f4f6', borderRadius: 6, marginBottom: 16, width: '40%' }} />
-                  <div style={{ height: 38, backgroundColor: '#e5e7eb', borderRadius: 10 }} />
+        {/* Store results container */}
+        <div style={{ minHeight: '800px' }}>
+          {loading ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+              {[...Array(6)].map((_, i) => (
+                <div key={i} style={{ backgroundColor: '#fff', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+                  <div style={{ height: 200, backgroundColor: '#e5e7eb' }} />
+                  <div style={{ padding: '16px' }}>
+                    <div style={{ height: 16, backgroundColor: '#e5e7eb', borderRadius: 6, marginBottom: 10, width: '70%' }} />
+                    <div style={{ height: 12, backgroundColor: '#f3f4f6', borderRadius: 6, marginBottom: 8, width: '50%' }} />
+                    <div style={{ height: 12, backgroundColor: '#f3f4f6', borderRadius: 6, marginBottom: 16, width: '40%' }} />
+                    <div style={{ height: 38, backgroundColor: '#e5e7eb', borderRadius: 10 }} />
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-            {filtered.map((store) => (
-              <StoreCard
-                key={store._id}
-                store={store}
-                onClick={() => navigate(`/store/${store._id}`)}
-              />
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '80px 0',
+              backgroundColor: '#fff',
+              borderRadius: '20px',
+              border: '1px dashed #d1d5db'
+            }}>
+              <SlidersHorizontal style={{ width: 64, height: 64, color: '#e5e7eb', marginBottom: '20px' }} />
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#546e7a', margin: 0 }}>No results found</h3>
+              <p style={{ fontSize: '0.9rem', color: '#9ca3af', marginTop: '8px' }}>Try adjusting your filters to find more stores.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+              {filtered.map((store) => (
+                <StoreCard
+                  key={store._id}
+                  store={store}
+                  onClick={() => navigate(`/store/${store._id}`)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Scroll to Top Button */}

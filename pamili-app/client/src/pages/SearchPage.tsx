@@ -539,9 +539,9 @@ export default function SearchPage() {
                                   <button
                                     disabled={!inStock}
                                     onClick={() => inStock && addItem({ productId: product._id, productName: product.name, storeId, storeName, price, image: product.image })}
-                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 11px', fontSize: '0.78rem', fontWeight: 700, border: 'none', borderRadius: '7px', backgroundColor: inStock ? '#8B1538' : '#e5e7eb', color: inStock ? '#fff' : '#9ca3af', cursor: inStock ? 'pointer' : 'not-allowed' }}
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 11px', fontSize: '0.78rem', fontWeight: 700, border: 'none', borderRadius: '7px', backgroundColor: inStock ? '#014421' : '#e5e7eb', color: inStock ? '#fff' : '#9ca3af', cursor: inStock ? 'pointer' : 'not-allowed' }}
                                   >
-                                    <ShoppingCart style={{ width: 12, height: 12 }} /> Add
+                                    <ShoppingCart style={{ width: 12, height: 12 }} /> Add to List
                                   </button>
                                 </div>
                               </div>

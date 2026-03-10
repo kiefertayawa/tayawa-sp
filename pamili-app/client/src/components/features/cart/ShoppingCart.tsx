@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
-import { X, Plus, Minus, Trash2, ShoppingBag, Check } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { X, Plus, Minus, Trash2, ShoppingBag, Check, Camera } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
+import { toPng } from 'html-to-image';
+import { toast } from 'sonner';
 
 interface ShoppingCartProps {
   isOpen: boolean;
@@ -19,6 +21,49 @@ export default function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
     subtotal,
     totalItems
   } = useCart();
+
+  const receiptRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportImage = async () => {
+    if (items.length === 0) {
+      toast.error('Your list is empty.');
+      return;
+    }
+
+    const selectedItemsCount = items.filter(i => i.selected !== false).length;
+    if (selectedItemsCount === 0) {
+      toast.error('No items selected to export.');
+      return;
+    }
+
+    setIsExporting(true);
+
+    try {
+      // Need to wait for a tick to ensure images are loaded or div is ready if we were doing specific hidden rendering
+      // But html-to-image is quite good. We just need to target the receiptRef.  
+      if (receiptRef.current) {
+        const dataUrl = await toPng(receiptRef.current, {
+          cacheBust: true,
+          backgroundColor: '#ffffff',
+          style: {
+            // Ensure the exported image has a clean look and is not truncated
+            padding: '40px',
+            borderRadius: '0px'
+          }
+        });
+
+        const link = document.createElement('a');
+        link.download = `PAMILI-Shopping-List-${new Date().toISOString().split('T')[0]}.png`;
+        link.href = dataUrl;
+        link.click();
+      }
+    } catch (err) {
+      console.error('Export error:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // ── Slide animation state ────────────────────────────────────────────────
   // `mounted`  — whether the DOM node exists
@@ -322,6 +367,31 @@ export default function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
             <span style={{ fontSize: '1.5rem', fontWeight: 700, color: '#8B1538' }}>₱{subtotal.toFixed(2)}</span>
           </div>
           <button
+            onClick={handleExportImage}
+            disabled={isExporting || items.length === 0}
+            style={{
+              width: '100%',
+              padding: '12px',
+              fontSize: '0.9rem',
+              fontWeight: 700,
+              color: '#fff',
+              backgroundColor: isExporting ? '#9ca3af' : '#014421',
+              border: 'none',
+              borderRadius: '10px',
+              cursor: isExporting ? 'not-allowed' : 'pointer',
+              marginBottom: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              boxShadow: '0 4px 12px rgba(1,68,33,0.2)'
+            }}
+          >
+            <Camera style={{ width: 18, height: 18 }} />
+            {isExporting ? 'Generating...' : 'Export List as Image'}
+          </button>
+
+          <button
             onClick={clearCart}
             style={{
               width: '100%',
@@ -341,6 +411,82 @@ export default function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
           <p style={{ fontSize: '0.75rem', textAlign: 'center', color: '#9ca3af' }}>
             This is a budget planning tool. Visit stores to make actual purchases.
           </p>
+        </div>
+      </div>
+
+      {/* ── HIDDEN RECEIPT FOR EXPORT ── */}
+      <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
+        <div
+          ref={receiptRef}
+          style={{
+            width: '500px',
+            backgroundColor: '#ffffff',
+            padding: '60px 40px',
+            fontFamily: 'system-ui, -apple-system, sans-serif'
+          }}
+        >
+          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+            <img src="/pamili-logo.png" alt="Logo" style={{ height: '60px', marginBottom: '16px' }} />
+            <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#8B1538', margin: '0 0 5px' }}>PAMILI Shopping List</h1>
+            <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '8px' }}>{new Date().toLocaleDateString(undefined, { dateStyle: 'full' })}</p>
+          </div>
+
+          <div style={{ borderTop: '2px dashed #e5e7eb', borderBottom: '2px dashed #e5e7eb', padding: '24px 0', marginBottom: '30px' }}>
+            {Object.entries(byStore).map(([storeName, storeItems]) => {
+              const selectedStoreItems = storeItems.filter(i => i.selected !== false);
+              if (selectedStoreItems.length === 0) return null;
+
+              const storeSubtotal = selectedStoreItems.reduce((s, i) => s + i.price * i.quantity, 0);
+
+              return (
+                <div key={storeName} style={{ marginBottom: '30px' }}>
+                  <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#8B1538', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {storeName}
+                  </h2>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {selectedStoreItems.map(item => (
+                      <div key={`${item.productId}-${item.storeId}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px' }}>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: '0 0 2px' }}>{item.productName}</p>
+                          <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>{item.quantity} x ₱{item.price.toFixed(2)}</p>
+                        </div>
+                        <p style={{ fontSize: '14px', fontWeight: 700, color: '#111827', margin: 0 }}>₱{(item.price * item.quantity).toFixed(2)}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ borderTop: '1px solid #f3f4f6', marginTop: '12px', paddingTop: '8px', textAlign: 'right' }}>
+                    <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>
+                      Store Subtotal: <span style={{ color: '#111827', fontWeight: 700, marginLeft: '8px' }}>₱{storeSubtotal.toFixed(2)}</span>
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ backgroundColor: '#f9fafb', borderRadius: '12px', padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span style={{ fontSize: '14px', color: '#6b7280' }}>Total Items:</span>
+              <span style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>
+                {items.filter(i => i.selected !== false).reduce((s, i) => s + i.quantity, 0)}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>TOTAL BUDGET:</span>
+              <span style={{ fontSize: '24px', fontWeight: 800, color: '#8B1538' }}>
+                ₱{items.filter(i => i.selected !== false).reduce((s, i) => s + i.price * i.quantity, 0).toFixed(2)}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ marginTop: '40px', textAlign: 'center', borderTop: '1px solid #e5e7eb', paddingTop: '20px' }}>
+            <p style={{ fontSize: '12px', color: '#9ca3af', fontStyle: 'italic' }}>
+              "Find the best deals near you with PAMILI"
+            </p>
+            <p style={{ fontSize: '10px', color: '#d1d5db', marginTop: '10px' }}>
+              Generated via PAMILI Crowdsourced Budget Planner
+            </p>
+          </div>
         </div>
       </div>
     </>
