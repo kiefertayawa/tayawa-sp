@@ -2,6 +2,36 @@ const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
 const Store = require('../models/Store');
+const Report = require('../models/Report');
+
+// POST /api/products/:id/report — report a product
+router.post('/:id/report', async (req, res) => {
+  try {
+    const { storeId, reason } = req.body;
+    if (!storeId || !reason) {
+      return res.status(400).json({ success: false, error: 'Store ID and reason are required' });
+    }
+
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ success: false, error: 'Product not found' });
+
+    const store = await Store.findById(storeId);
+    if (!store) return res.status(404).json({ success: false, error: 'Store not found' });
+
+    const report = await Report.create({
+      productId: product._id,
+      productName: product.name,
+      storeId: store._id,
+      storeName: store.name,
+      reason: reason.substring(0, 200),
+      submittedDate: new Date().toISOString()
+    });
+
+    res.status(201).json({ success: true, data: report, message: 'Report submitted successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // GET /api/products — get all approved products
 router.get('/', async (req, res) => {

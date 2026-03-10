@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, Search, Upload, LogOut, X } from 'lucide-react';
+import { ShoppingCart, Search, Upload, LogOut, X, HelpCircle } from 'lucide-react';
 
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
@@ -23,6 +23,7 @@ export default function Header({ onCartClick, onSubmitClick }: HeaderProps) {
   const { isAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [showHelpTooltip, setShowHelpTooltip] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -253,6 +254,48 @@ export default function Header({ onCartClick, onSubmitClick }: HeaderProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'flex-end' }}>
         {!isAdminRoute && (
           <>
+            <div
+              style={{ position: 'relative', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+              onMouseEnter={() => setShowHelpTooltip(true)}
+              onMouseLeave={() => setShowHelpTooltip(false)}
+            >
+              <HelpCircle style={{ width: 18, height: 18, color: '#9ca3af' }} />
+
+              {showHelpTooltip && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: '10px',
+                  backgroundColor: '#ffffff',
+                  color: '#374151',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  fontSize: '0.8rem',
+                  fontWeight: 500,
+                  width: '200px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                  border: '1.5px solid #f3f4f6',
+                  zIndex: 1000,
+                  pointerEvents: 'none',
+                  fontFamily: '"Inter", sans-serif',
+                  lineHeight: '1.4'
+                }}>
+                  {/* Tooltip arrow */}
+                  <div style={{
+                    position: 'absolute',
+                    top: '-6px',
+                    right: '4px',
+                    width: 0,
+                    height: 0,
+                    borderLeft: '6px solid transparent',
+                    borderRight: '6px solid transparent',
+                    borderBottom: '6px solid #fff'
+                  }} />
+                  See a new product in the store? Add it here!
+                </div>
+              )}
+            </div>
             <button
               onClick={onSubmitClick}
               style={{
@@ -261,6 +304,7 @@ export default function Header({ onCartClick, onSubmitClick }: HeaderProps) {
                 fontSize: '0.875rem', fontWeight: 600,
                 color: '#ffffff', backgroundColor: '#8B1538',
                 border: 'none', borderRadius: '10px', cursor: 'pointer',
+                marginLeft: '0px'
               }}
             >
               <Upload style={{ width: 16, height: 16 }} /> Add Product
@@ -277,7 +321,7 @@ export default function Header({ onCartClick, onSubmitClick }: HeaderProps) {
                 border: '1.5px solid #e5e7eb', borderRadius: '10px', cursor: 'pointer',
               }}
             >
-              <ShoppingCart style={{ width: 17, height: 17 }} /> List
+              <ShoppingCart style={{ width: 17, height: 17 }} /> Shopping List
               {totalItems > 0 && (
                 <span
                   style={{

@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Star, Clock, Users, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, MapPin, Star, Clock, TrendingUp, TrendingDown } from 'lucide-react';
 import { useStore } from '../hooks';
 import ReviewsSection from '../components/features/store/ReviewsSection';
+import ProductsSection from '../components/features/store/ProductsSection';
 
 const crowdConfig = {
   low: { color: '#16a34a', bg: '#dcfce7', label: 'Low' },
@@ -142,8 +143,7 @@ export default function StorePage() {
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e5e7eb', padding: '24px', marginBottom: '16px' }}>
           {/* Section header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-            <Users style={{ width: 16, height: 16, color: '#6b7280' }} />
-            <h2 style={{ fontWeight: 600, color: '#374151', fontSize: '0.95rem', margin: 0 }}>Crowd Insights</h2>
+            <h2 style={{ fontWeight: 600, color: '#111827', fontSize: '0.95rem', margin: 0 }}>Crowd Insights</h2>
           </div>
 
           {/* Status + help text */}
@@ -195,6 +195,9 @@ export default function StorePage() {
             </div>
           </div>
         </div>
+
+        {/* Products Section */}
+        <ProductsSection storeId={store._id} />
 
         {/* Reviews */}
         <ReviewsSection storeId={store._id} storeName={store.name} helpText="Help the community! Share your shopping experience by leaving a review below." />

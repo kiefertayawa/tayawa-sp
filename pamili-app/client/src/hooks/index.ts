@@ -5,7 +5,7 @@
 // ============================================================
 
 import { useState, useEffect, useCallback } from 'react';
-import type { Product, Store, Review } from '../types';
+import type { Product, Store, Review, ProductReport } from '../types';
 import { productService, storeService, reviewService, adminService } from '../services/api';
 
 // ─── Stores ───────────────────────────────────────────────
@@ -190,8 +190,9 @@ export function useReviews(storeId: string | undefined) {
 
 // ─── Admin ────────────────────────────────────────────────
 export function usePendingItems(isAdmin: boolean = true) {
-  const [pendingProducts, setPendingProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [pendingReviews, setPendingReviews] = useState<Review[]>([]);
+  const [pendingReports, setPendingReports] = useState<ProductReport[]>([]);
   const [stats, setStats] = useState({
     pendingProducts: 0,
     approvedProducts: 0,
@@ -199,6 +200,7 @@ export function usePendingItems(isAdmin: boolean = true) {
     pendingReviews: 0,
     approvedReviews: 0,
     rejectedReviews: 0,
+    pendingReports: 0,
     totalStores: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -211,15 +213,20 @@ export function usePendingItems(isAdmin: boolean = true) {
     }
     if (!silent) setLoading(true);
     try {
-      const [prodRes, revRes, statsRes, storeRes] = await Promise.all([
-        adminService.getPendingProducts(),
+      const [prodRes, revRes, statsRes, storeRes, reportRes] = await Promise.all([
+        adminService.getAllProducts(),
         adminService.getPendingReviews(),
         adminService.getStats(),
         adminService.getAllStores(),
+        adminService.getPendingReports(),
       ]);
-      setPendingProducts(prodRes.data.data);
+      setProducts(prodRes.data.data);
       setPendingReviews(revRes.data.data);
-      setStats(statsRes.data.data);
+      setPendingReports(reportRes.data.data);
+      setStats({
+        ...statsRes.data.data,
+        pendingReports: statsRes.data.data.pendingReports || 0
+      });
       setStores(storeRes.data.data);
     } catch (err) {
       console.error('Failed to load admin data:', err);
@@ -231,14 +238,17 @@ export function usePendingItems(isAdmin: boolean = true) {
   const refreshStats = async () => {
     try {
       const res = await adminService.getStats();
-      setStats(res.data.data);
+      setStats({
+        ...res.data.data,
+        pendingReports: res.data.data.pendingReports || 0
+      });
     } catch { }
   };
 
   const approveProduct = async (id: string) => {
     try {
       await adminService.approveProduct(id);
-      setPendingProducts((p) => p.filter((x) => x._id !== id));
+      setProducts((p) => p.map(x => x._id === id ? { ...x, status: 'approved' as const } : x));
       refreshStats();
       return true;
     } catch { return false; }
@@ -247,7 +257,16 @@ export function usePendingItems(isAdmin: boolean = true) {
   const rejectProduct = async (id: string) => {
     try {
       await adminService.rejectProduct(id);
-      setPendingProducts((p) => p.filter((x) => x._id !== id));
+      setProducts((p) => p.map(x => x._id === id ? { ...x, status: 'rejected' as const } : x));
+      refreshStats();
+      return true;
+    } catch { return false; }
+  };
+
+  const deleteProduct = async (id: string) => {
+    try {
+      await adminService.deleteProduct(id);
+      setProducts((p) => p.filter((x) => x._id !== id));
       refreshStats();
       return true;
     } catch { return false; }
@@ -288,6 +307,24 @@ export function usePendingItems(isAdmin: boolean = true) {
     } catch { return false; }
   };
 
+  const resolveReport = async (id: string) => {
+    try {
+      await adminService.resolveReport(id);
+      setPendingReports((r) => r.filter((x) => x._id !== id));
+      refreshStats();
+      return true;
+    } catch { return false; }
+  };
+
+  const ignoreReport = async (id: string) => {
+    try {
+      await adminService.ignoreReport(id);
+      setPendingReports((r) => r.filter((x) => x._id !== id));
+      refreshStats();
+      return true;
+    } catch { return false; }
+  };
+
   useEffect(() => {
     const onFocus = () => load(true);
     window.addEventListener('focus', onFocus);
@@ -304,15 +341,19 @@ export function usePendingItems(isAdmin: boolean = true) {
   }, [load]);
 
   return {
-    pendingProducts,
+    products,
     pendingReviews,
+    pendingReports,
     stores,
     stats,
     loading,
     approveProduct,
     rejectProduct,
+    deleteProduct,
     approveReview,
     rejectReview,
+    resolveReport,
+    ignoreReport,
     addStore,
     deleteStore: deleteStoreHook,
     refetch: load

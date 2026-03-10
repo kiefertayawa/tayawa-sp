@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Star, Package, Eye, EyeOff, CheckCircle, X, User, Plus, MapPin, Users } from 'lucide-react';
+import { Star, Package, Eye, EyeOff, CheckCircle, X, User, Plus, MapPin, Users, ArrowUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap, CircleMarker } from 'react-leaflet';
 import L from 'leaflet';
@@ -95,19 +95,20 @@ function getLiveCrowdStatus(store: any): 'low' | 'medium' | 'high' {
 
 export default function AdminPage() {
   const { isAdmin, login } = useAuth();
-  const [tab, setTab] = useState<'products' | 'reviews' | 'stores'>('products');
+  const [tab, setTab] = useState<'products' | 'reviews' | 'stores' | 'reports'>('products');
   const [showAddStore, setShowAddStore] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [showScroll, setShowScroll] = useState(false);
 
 
   // Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState<{
     show: boolean;
-    type: 'product' | 'review' | 'store';
-    action: 'approve' | 'reject' | 'delete';
+    type: 'product' | 'review' | 'store' | 'report';
+    action: 'approve' | 'reject' | 'delete' | 'resolve' | 'ignore';
     id: string;
     name: string;
   }>({ show: false, type: 'product', action: 'reject', id: '', name: '' });
@@ -122,8 +123,9 @@ export default function AdminPage() {
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
 
   const {
-    pendingProducts, pendingReviews, stores, stats, loading,
-    approveProduct, rejectProduct, approveReview, rejectReview,
+    products, pendingReviews, pendingReports, stores, stats, loading,
+    approveProduct, rejectProduct, deleteProduct, approveReview, rejectReview,
+    resolveReport, ignoreReport,
     addStore, deleteStore
   } = usePendingItems(isAdmin);
 
@@ -139,6 +141,19 @@ export default function AdminPage() {
       document.body.style.overflow = 'unset';
     };
   }, [showAddStore, confirmModal.show, viewReviewModal.show, viewProductModal.show]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 400) setShowScroll(true);
+      else setShowScroll(false);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Clear fields on logout
   useEffect(() => {
@@ -174,6 +189,10 @@ export default function AdminPage() {
     setConfirmModal({ show: true, type: 'product', action: 'reject', id, name });
   };
 
+  const handleDeleteProduct = (id: string, name: string) => {
+    setConfirmModal({ show: true, type: 'product', action: 'delete', id, name });
+  };
+
   const handleApproveReview = async (id: string) => {
     const ok = await approveReview(id);
     if (ok) toast.success('Review approved!');
@@ -186,6 +205,16 @@ export default function AdminPage() {
 
   const handleDeleteStore = (id: string, name: string) => {
     setConfirmModal({ show: true, type: 'store', action: 'delete', id, name });
+  };
+
+  const handleResolveReport = async (id: string) => {
+    const ok = await resolveReport(id);
+    if (ok) toast.success('Report marked as resolved!');
+    else toast.error('Failed to resolve report.');
+  };
+
+  const handleIgnoreReport = (id: string, name: string) => {
+    setConfirmModal({ show: true, type: 'report', action: 'ignore', id, name });
   };
 
   const handleOpenReviewDetail = (review: any) => {
@@ -204,6 +233,10 @@ export default function AdminPage() {
       const ok = await rejectProduct(id);
       if (ok) toast.success('Submission rejected.');
       else toast.error('Failed to reject submission.');
+    } else if (type === 'product' && action === 'delete') {
+      const ok = await deleteProduct(id);
+      if (ok) toast.success('Product deleted.');
+      else toast.error('Failed to delete product.');
     } else if (type === 'review' && action === 'reject') {
       const ok = await rejectReview(id);
       if (ok) toast.success('Review rejected.');
@@ -212,6 +245,10 @@ export default function AdminPage() {
       const ok = await deleteStore(id);
       if (ok) toast.success('Store deleted.');
       else toast.error('Failed to delete store.');
+    } else if (type === 'report' && action === 'ignore') {
+      const ok = await ignoreReport(id);
+      if (ok) toast.success('Report ignored.');
+      else toast.error('Failed to ignore report.');
     }
   };
 
@@ -346,28 +383,52 @@ export default function AdminPage() {
         </div>
 
         {/* ── Stat cards ─────────────────────────────── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', marginBottom: '24px' }}>
-          {[
-            { label: 'Total Stores', value: stats.totalStores || 0, color: '#16a34a' },
-            { label: 'Pending Products', value: stats.pendingProducts, color: '#8B1538' },
-            { label: 'Pending Reviews', value: stats.pendingReviews, color: '#8B1538' },
-            { label: 'Accepted Entries', value: stats.approvedProducts + stats.approvedReviews, color: '#16a34a' },
-            { label: 'Rejected Entries', value: stats.rejectedProducts + stats.rejectedReviews, color: '#dc2626' },
-          ].map(stat => (
-            <div
-              key={stat.label}
-              style={{
-                backgroundColor: '#fff',
-                borderRadius: '14px',
-                border: '1px solid #e5e7eb',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-                padding: '20px 22px',
-              }}
-            >
-              <p style={{ fontSize: '0.83rem', color: '#6b7280', margin: '0 0 10px' }}>{stat.label}</p>
-              <p style={{ fontSize: '2.4rem', fontWeight: 700, color: stat.color, margin: 0, lineHeight: 1 }}>{stat.value}</p>
-            </div>
-          ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+          {/* Upper: Pendings */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+            {[
+              { label: 'Pending Products', value: stats.pendingProducts, color: '#8B1538' },
+              { label: 'Pending Reviews', value: stats.pendingReviews, color: '#8B1538' },
+              { label: 'Pending Reports', value: stats.pendingReports, color: '#dc2626' },
+            ].map(stat => (
+              <div
+                key={stat.label}
+                style={{
+                  backgroundColor: '#fff',
+                  borderRadius: '14px',
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                  padding: '20px 22px',
+                }}
+              >
+                <p style={{ fontSize: '0.83rem', color: '#6b7280', margin: '0 0 10px' }}>{stat.label}</p>
+                <p style={{ fontSize: '2.4rem', fontWeight: 700, color: stat.color, margin: 0, lineHeight: 1 }}>{stat.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Lower: Totals */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+            {[
+              { label: 'Total Stores', value: stats.totalStores || 0, color: '#16a34a' },
+              { label: 'Accepted Entries', value: stats.approvedProducts + stats.approvedReviews, color: '#16a34a' },
+              { label: 'Rejected Entries', value: stats.rejectedProducts + stats.rejectedReviews, color: '#dc2626' },
+            ].map(stat => (
+              <div
+                key={stat.label}
+                style={{
+                  backgroundColor: '#fff',
+                  borderRadius: '14px',
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                  padding: '20px 22px',
+                }}
+              >
+                <p style={{ fontSize: '0.83rem', color: '#6b7280', margin: '0 0 10px' }}>{stat.label}</p>
+                <p style={{ fontSize: '2.4rem', fontWeight: 700, color: stat.color, margin: 0, lineHeight: 1 }}>{stat.value}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* ── Main panel ─────────────────────────────── */}
@@ -382,7 +443,7 @@ export default function AdminPage() {
         >
           {/* Tab bar */}
           <div style={{ display: 'flex', padding: '6px', backgroundColor: '#f3f4f6', gap: '4px' }}>
-            {(['products', 'stores', 'reviews'] as const).map(t => (
+            {(['products', 'stores', 'reviews', 'reports'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -397,10 +458,12 @@ export default function AdminPage() {
                 }}
               >
                 {t === 'products'
-                  ? `Products (${pendingProducts.length})`
+                  ? `All Products (${products.length})`
                   : t === 'stores'
-                    ? `Stores (${stores.length})`
-                    : `Reviews (${pendingReviews.length})`}
+                    ? `All Stores (${stores.length})`
+                    : t === 'reviews'
+                      ? `Pending Reviews (${pendingReviews.length})`
+                      : `Pending Reports (${pendingReports.length})`}
               </button>
             ))}
           </div>
@@ -413,10 +476,10 @@ export default function AdminPage() {
               ))}
             </div>
           ) : tab === 'products' ? (
-            pendingProducts.length === 0 ? (
+            products.length === 0 ? (
               <div style={{ padding: '64px', textAlign: 'center', color: '#9ca3af' }}>
                 <CheckCircle style={{ width: 40, height: 40, color: '#e5e7eb', margin: '0 auto 8px' }} />
-                <p style={{ fontSize: '0.875rem' }}>No pending products</p>
+                <p style={{ fontSize: '0.875rem' }}>No products found</p>
               </div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -429,6 +492,7 @@ export default function AdminPage() {
                           textAlign: 'left', padding: '12px 18px',
                           fontSize: '0.8rem', fontWeight: 700,
                           color: '#374151', letterSpacing: '0.02em',
+                          width: h === 'Actions' ? '180px' : undefined,
                         }}
                       >
                         {h}
@@ -437,14 +501,14 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {pendingProducts.map((p, idx) => (
+                  {products.map((p, idx) => (
                     <tr
                       key={p._id}
                       onMouseEnter={() => setHoveredRow(p._id)}
                       onMouseLeave={() => setHoveredRow(null)}
                       onClick={() => handleOpenProductDetail(p)}
                       style={{
-                        borderBottom: idx < pendingProducts.length - 1 ? '1px solid #f9fafb' : 'none',
+                        borderBottom: idx < products.length - 1 ? '1px solid #f9fafb' : 'none',
                         backgroundColor: hoveredRow === p._id ? '#f9fafb' : 'transparent',
                         cursor: 'pointer',
                         transition: 'background-color 0.2s',
@@ -479,52 +543,283 @@ export default function AdminPage() {
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280' }}>
                         {formatShortDate(p.submittedDate)}
                       </td>
-                      <td style={{ padding: '14px 18px' }} onClick={e => e.stopPropagation()}>
+                      <td style={{ padding: '14px 18px', minWidth: '180px' }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          <button
-                            onClick={() => handleApproveProduct(p._id)}
-                            style={{
-                              padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
-                              color: '#fff', backgroundColor: '#16a34a',
-                              border: 'none', borderRadius: '6px', cursor: 'pointer',
-                            }}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleRejectProduct(p._id, p.name)}
-                            style={{
-                              padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
-                              color: '#dc2626', backgroundColor: '#fff',
-                              border: '1.5px solid #dc2626', borderRadius: '6px', cursor: 'pointer',
-                            }}
-                          >
-                            Reject
-                          </button>
+                          {p.status === 'pending' ? (
+                            <>
+                              <button
+                                onClick={() => handleApproveProduct(p._id)}
+                                style={{
+                                  padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
+                                  color: '#fff', backgroundColor: '#16a34a',
+                                  border: 'none', borderRadius: '6px', cursor: 'pointer',
+                                }}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleRejectProduct(p._id, p.name)}
+                                style={{
+                                  padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
+                                  color: '#dc2626', backgroundColor: '#fff',
+                                  border: '1.5px solid #dc2626', borderRadius: '6px', cursor: 'pointer',
+                                }}
+                              >
+                                Reject
+                              </button>
+                            </>
+                          ) : p.status === 'approved' ? (
+                            <button
+                              onClick={() => handleDeleteProduct(p._id, p.name)}
+                              style={{
+                                padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
+                                color: '#dc2626', backgroundColor: '#fff',
+                                border: '1.5px solid #dc2626', borderRadius: '6px', cursor: 'pointer'
+                              }}
+                            >
+                              Delete
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#9ca3af', textTransform: 'capitalize' }}>
+                              {p.status}
+                            </span>
+                          )}
                         </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            )
-          ) : tab === 'stores' ? (
-            stores.length === 0 ? (
+            )) : tab === 'stores' ? (
+              stores.length === 0 ? (
+                <div style={{ padding: '64px', textAlign: 'center', color: '#9ca3af' }}>
+                  <CheckCircle style={{ width: 40, height: 40, color: '#e5e7eb', margin: '0 auto 8px' }} />
+                  <p style={{ fontSize: '0.875rem' }}>No stores available</p>
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                      {['Image', 'Store Name', 'Crowd Level', 'Rating', 'Date Created', 'Actions'].map(h => (
+                        <th
+                          key={h}
+                          style={{
+                            textAlign: 'left', padding: '12px 18px',
+                            fontSize: '0.8rem', fontWeight: 700,
+                            color: '#374151', letterSpacing: '0.02em',
+                          }}
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stores.map((s, idx) => (
+                      <tr
+                        key={s._id}
+                        onMouseEnter={() => setHoveredRow(s._id)}
+                        onMouseLeave={() => setHoveredRow(null)}
+                        style={{
+                          borderBottom: idx < stores.length - 1 ? '1px solid #f9fafb' : 'none',
+                          backgroundColor: hoveredRow === s._id ? '#f9fafb' : 'transparent',
+                          transition: 'background-color 0.2s',
+                          cursor: 'default',
+                        }}
+                      >
+                        <td style={{ padding: '14px 18px' }}>
+                          {s.image ? (
+                            <img
+                              src={s.image}
+                              alt={s.name}
+                              style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: '8px' }}
+                              onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available')}
+                            />
+                          ) : (
+                            <div style={{ width: 48, height: 48, backgroundColor: '#f3f4f6', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <Package style={{ width: 20, height: 20, color: '#d1d5db' }} />
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>
+                          {s.name}
+                        </td>
+                        <td style={{ padding: '14px 18px' }}>
+                          {(() => {
+                            const status = getLiveCrowdStatus(s);
+                            const config = crowdConfig[status];
+                            return (
+                              <span style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                fontSize: '0.72rem', fontWeight: 700,
+                                color: config.color,
+                                backgroundColor: config.bg,
+                                borderRadius: '999px', padding: '3px 10px',
+                              }}>
+                                {config.label}
+                              </span>
+                            );
+                          })()}
+                        </td>
+                        <td style={{ padding: '14px 18px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Star style={{ width: 14, height: 14, fill: '#facc15', color: '#facc15' }} />
+                            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>{s.rating.toFixed(1)}</span>
+                            <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>({s.reviewCount})</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280' }}>
+                          {formatShortDate(s.createdAt)}
+                        </td>
+                        <td style={{ padding: '14px 18px' }}>
+                          <button
+                            onClick={() => handleDeleteStore(s._id, s.name)}
+                            style={{
+                              padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
+                              color: '#dc2626', backgroundColor: '#fff',
+                              border: '1.5px solid #dc2626', borderRadius: '6px', cursor: 'pointer',
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )) : tab === 'reviews' ? (
+                pendingReviews.length === 0 ? (
+                  <div style={{ padding: '64px', textAlign: 'center', color: '#9ca3af' }}>
+                    <CheckCircle style={{ width: 40, height: 40, color: '#e5e7eb', margin: '0 auto 8px' }} />
+                    <p style={{ fontSize: '0.875rem' }}>No pending reviews</p>
+                  </div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                        {[
+                          { l: 'Store', w: '22%' },
+                          { l: 'Rating', w: '12%' },
+                          { l: 'Review', w: '40%' },
+                          { l: 'Date', w: '13%' },
+                          { l: 'Actions', w: '13%' }
+                        ].map(h => (
+                          <th
+                            key={h.l}
+                            style={{
+                              textAlign: 'left', padding: '16px 20px',
+                              fontSize: '0.8rem', fontWeight: 700,
+                              color: '#374151', width: h.w
+                            }}
+                          >
+                            {h.l}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingReviews.map((r, idx) => (
+                        <tr
+                          key={r._id}
+                          onMouseEnter={() => setHoveredRow(r._id)}
+                          onMouseLeave={() => setHoveredRow(null)}
+                          onClick={() => handleOpenReviewDetail(r)}
+                          style={{
+                            borderBottom: idx < pendingReviews.length - 1 ? '1px solid #f9fafb' : 'none',
+                            backgroundColor: hoveredRow === r._id ? '#f9fafb' : 'transparent',
+                            cursor: 'pointer',
+                            transition: 'background-color 0.2s',
+                          }}
+                        >
+                          <td style={{ padding: '16px 20px', fontSize: '0.875rem', fontWeight: 500, color: '#111827', width: '22%' }}>
+                            {stores.find(st => st._id === r.storeId)?.name ?? 'Unknown Store'}
+                          </td>
+                          <td style={{ padding: '16px 20px', width: '12%' }}>
+                            <div style={{ display: 'flex', gap: '2px' }}>
+                              {[1, 2, 3, 4, 5].map(s => (
+                                <Star
+                                  key={s}
+                                  style={{ width: 14, height: 14, fill: s <= r.rating ? '#facc15' : '#e5e7eb', color: s <= r.rating ? '#facc15' : '#e5e7eb' }}
+                                />
+                              ))}
+                            </div>
+                          </td>
+                          <td
+                            style={{
+                              padding: '16px 20px', fontSize: '0.875rem', color: '#6b7280',
+                              width: '40%',
+                            }}
+                          >
+                            <div style={{ transition: 'opacity 0.2s' }}>
+                              <span style={{
+                                display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden', marginBottom: r.images?.length ? '8px' : '0',
+                                wordBreak: 'break-all'
+                              }}>
+                                {r.text}
+                              </span>
+                              {r.images && r.images.length > 0 && (
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                  {r.images.map((img: any, i: number) => {
+                                    const url = (typeof img === 'string' ? img : img?.url) || 'https://placehold.co/400x400?text=No+Photo';
+                                    return (
+                                      <img
+                                        key={i} src={url} alt="Preview"
+                                        style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover', border: '1px solid #e5e7eb' }}
+                                        onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=Error')}
+                                      />
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#6b7280', width: '13%' }}>{formatShortDate(r.date)}</td>
+                          <td style={{ padding: '16px 20px', width: '13%' }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button
+                                onClick={() => handleApproveReview(r._id)}
+                                style={{
+                                  padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
+                                  color: '#fff', backgroundColor: '#16a34a',
+                                  border: 'none', borderRadius: '6px', cursor: 'pointer',
+                                }}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleRejectReview(r._id, r.userName)}
+                                style={{
+                                  padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
+                                  color: '#dc2626', backgroundColor: '#fff',
+                                  border: '1.5px solid #dc2626', borderRadius: '6px', cursor: 'pointer',
+                                }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )) : (
+            pendingReports.length === 0 ? (
               <div style={{ padding: '64px', textAlign: 'center', color: '#9ca3af' }}>
                 <CheckCircle style={{ width: 40, height: 40, color: '#e5e7eb', margin: '0 auto 8px' }} />
-                <p style={{ fontSize: '0.875rem' }}>No stores available</p>
+                <p style={{ fontSize: '0.875rem' }}>No pending reports</p>
               </div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    {['Image', 'Store Name', 'Crowd Level', 'Rating', 'Date Created', 'Actions'].map(h => (
+                    {['Product', 'Store', 'Reason', 'Date', 'Actions'].map(h => (
                       <th
                         key={h}
                         style={{
-                          textAlign: 'left', padding: '12px 18px',
+                          textAlign: 'left', padding: '16px 20px',
                           fontSize: '0.8rem', fontWeight: 700,
-                          color: '#374151', letterSpacing: '0.02em',
+                          color: '#374151',
                         }}
                       >
                         {h}
@@ -533,188 +828,43 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {stores.map((s, idx) => (
-                    <tr
-                      key={s._id}
-                      onMouseEnter={() => setHoveredRow(s._id)}
-                      onMouseLeave={() => setHoveredRow(null)}
-                      style={{
-                        borderBottom: idx < stores.length - 1 ? '1px solid #f9fafb' : 'none',
-                        backgroundColor: hoveredRow === s._id ? '#f9fafb' : 'transparent',
-                        transition: 'background-color 0.2s',
-                        cursor: 'default',
-                      }}
-                    >
-                      <td style={{ padding: '14px 18px' }}>
-                        {s.image ? (
-                          <img
-                            src={s.image}
-                            alt={s.name}
-                            style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: '8px' }}
-                            onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available')}
-                          />
-                        ) : (
-                          <div style={{ width: 48, height: 48, backgroundColor: '#f3f4f6', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Package style={{ width: 20, height: 20, color: '#d1d5db' }} />
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>
-                        {s.name}
-                      </td>
-                      <td style={{ padding: '14px 18px' }}>
-                        {(() => {
-                          const status = getLiveCrowdStatus(s);
-                          const config = crowdConfig[status];
-                          return (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: '4px',
-                              fontSize: '0.72rem', fontWeight: 700,
-                              color: config.color,
-                              backgroundColor: config.bg,
-                              borderRadius: '999px', padding: '3px 10px',
-                            }}>
-                              {config.label}
-                            </span>
-                          );
-                        })()}
-                      </td>
-                      <td style={{ padding: '14px 18px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Star style={{ width: 14, height: 14, fill: '#facc15', color: '#facc15' }} />
-                          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>{s.rating.toFixed(1)}</span>
-                          <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>({s.reviewCount})</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280' }}>
-                        {formatShortDate(s.createdAt)}
-                      </td>
-                      <td style={{ padding: '14px 18px' }}>
-                        <button
-                          onClick={() => handleDeleteStore(s._id, s.name)}
-                          style={{
-                            padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
-                            color: '#dc2626', backgroundColor: '#fff',
-                            border: '1.5px solid #dc2626', borderRadius: '6px', cursor: 'pointer',
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )
-          ) : (
-            pendingReviews.length === 0 ? (
-              <div style={{ padding: '64px', textAlign: 'center', color: '#9ca3af' }}>
-                <CheckCircle style={{ width: 40, height: 40, color: '#e5e7eb', margin: '0 auto 8px' }} />
-                <p style={{ fontSize: '0.875rem' }}>No pending reviews</p>
-              </div>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    {[
-                      { l: 'Store', w: '22%' },
-                      { l: 'Rating', w: '12%' },
-                      { l: 'Review', w: '40%' },
-                      { l: 'Date', w: '13%' },
-                      { l: 'Actions', w: '13%' }
-                    ].map(h => (
-                      <th
-                        key={h.l}
-                        style={{
-                          textAlign: 'left', padding: '16px 20px',
-                          fontSize: '0.8rem', fontWeight: 700,
-                          color: '#374151', width: h.w
-                        }}
-                      >
-                        {h.l}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingReviews.map((r, idx) => (
+                  {pendingReports.map((r, idx) => (
                     <tr
                       key={r._id}
                       onMouseEnter={() => setHoveredRow(r._id)}
                       onMouseLeave={() => setHoveredRow(null)}
-                      onClick={() => handleOpenReviewDetail(r)}
                       style={{
-                        borderBottom: idx < pendingReviews.length - 1 ? '1px solid #f9fafb' : 'none',
+                        borderBottom: idx < pendingReports.length - 1 ? '1px solid #f9fafb' : 'none',
                         backgroundColor: hoveredRow === r._id ? '#f9fafb' : 'transparent',
-                        cursor: 'pointer',
                         transition: 'background-color 0.2s',
+                        cursor: 'default'
                       }}
                     >
-                      <td style={{ padding: '16px 20px', fontSize: '0.875rem', fontWeight: 500, color: '#111827', width: '22%' }}>
-                        {stores.find(st => st._id === r.storeId)?.name ?? 'Unknown Store'}
-                      </td>
-                      <td style={{ padding: '16px 20px', width: '12%' }}>
-                        <div style={{ display: 'flex', gap: '2px' }}>
-                          {[1, 2, 3, 4, 5].map(s => (
-                            <Star
-                              key={s}
-                              style={{ width: 14, height: 14, fill: s <= r.rating ? '#facc15' : '#e5e7eb', color: s <= r.rating ? '#facc15' : '#e5e7eb' }}
-                            />
-                          ))}
-                        </div>
-                      </td>
-                      <td
-                        style={{
-                          padding: '16px 20px', fontSize: '0.875rem', color: '#6b7280',
-                          width: '40%',
-                        }}
-                      >
-                        <div style={{ transition: 'opacity 0.2s' }}>
-                          <span style={{
-                            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden', marginBottom: r.images?.length ? '8px' : '0',
-                            wordBreak: 'break-all'
-                          }}>
-                            {r.text}
-                          </span>
-                          {r.images && r.images.length > 0 && (
-                            <div style={{ display: 'flex', gap: '6px' }}>
-                              {r.images.map((img: any, i: number) => {
-                                const url = (typeof img === 'string' ? img : img?.url) || 'https://placehold.co/400x400?text=No+Photo';
-                                return (
-                                  <img
-                                    key={i} src={url} alt="Preview"
-                                    style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover', border: '1px solid #e5e7eb' }}
-                                    onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=Error')}
-                                  />
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#6b7280', width: '13%' }}>{formatShortDate(r.date)}</td>
-                      <td style={{ padding: '16px 20px', width: '13%' }} onClick={e => e.stopPropagation()}>
+                      <td style={{ padding: '16px 20px', fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>{r.productName}</td>
+                      <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#374151' }}>{r.storeName}</td>
+                      <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#6b7280', maxWidth: '300px', wordBreak: 'break-word' }}>{r.reason}</td>
+                      <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#6b7280' }}>{formatShortDate(r.submittedDate)}</td>
+                      <td style={{ padding: '16px 20px' }}>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
-                            onClick={() => handleApproveReview(r._id)}
+                            onClick={() => handleResolveReport(r._id)}
                             style={{
                               padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
                               color: '#fff', backgroundColor: '#16a34a',
                               border: 'none', borderRadius: '6px', cursor: 'pointer',
                             }}
                           >
-                            Approve
+                            Resolve
                           </button>
                           <button
-                            onClick={() => handleRejectReview(r._id, r.userName)}
+                            onClick={() => handleIgnoreReport(r._id, `Report for ${r.productName}`)}
                             style={{
                               padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
-                              color: '#dc2626', backgroundColor: '#fff',
-                              border: '1.5px solid #dc2626', borderRadius: '6px', cursor: 'pointer',
+                              color: '#6b7280', backgroundColor: '#fff',
+                              border: '1.5px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer',
                             }}
                           >
-                            Reject
+                            Ignore
                           </button>
                         </div>
                       </td>
@@ -726,6 +876,41 @@ export default function AdminPage() {
           )}
         </div>
       </div>
+
+      {/* Scroll to Top Button */}
+      {showScroll && (
+        <button
+          onClick={scrollToTop}
+          style={{
+            position: 'fixed',
+            bottom: '32px',
+            right: '32px',
+            width: '50px',
+            height: '50px',
+            borderRadius: '50%',
+            backgroundColor: '#8B1538',
+            color: '#fff',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(139,21,56,0.3)',
+            zIndex: 999,
+            transition: 'all 0.2s ease-in-out',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.transform = 'translateY(-5px)';
+            e.currentTarget.style.boxShadow = '0 6px 16px rgba(139,21,56,0.4)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(139,21,56,0.3)';
+          }}
+        >
+          <ArrowUp style={{ width: 24, height: 24, strokeWidth: 3 }} />
+        </button>
+      )}
 
       {/* ── Confirmation Modal ────────────────────────── */}
       {
@@ -757,12 +942,18 @@ export default function AdminPage() {
                 <X style={{ width: 28, height: 28 }} />
               </div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>
-                Confirm {confirmModal.action === 'delete' ? 'Deletion' : 'Rejection'}
+                {confirmModal.action === 'delete' ? 'Confirm Deletion'
+                  : confirmModal.action === 'ignore' ? 'Ignore Report'
+                    : 'Confirm Rejection'}
               </h3>
               <p style={{ fontSize: '0.9rem', color: '#6b7280', margin: '0 0 24px', lineHeight: 1.5, wordBreak: 'break-word' }}>
                 {confirmModal.type === 'review'
-                  ? "Are you sure you want to reject this review?"
-                  : <>Are you sure you want to {confirmModal.action === 'delete' ? 'delete' : 'reject'} the {confirmModal.type} <strong style={{ wordBreak: 'break-all' }}>{confirmModal.name}</strong>?</>
+                  ? 'Are you sure you want to reject this review? This action cannot be undone.'
+                  : confirmModal.type === 'report' && confirmModal.action === 'ignore'
+                    ? <>Are you sure you want to ignore the report for <strong style={{ wordBreak: 'break-all' }}>{confirmModal.name.replace('Report for ', '')}</strong>?</>
+                    : confirmModal.type === 'product' && confirmModal.action === 'delete'
+                      ? <>Are you sure you want to permanently delete <strong style={{ wordBreak: 'break-all' }}>{confirmModal.name}</strong>? This cannot be undone.</>
+                      : <>Are you sure you want to reject <strong style={{ wordBreak: 'break-all' }}>{confirmModal.name}</strong>?</>
                 }
               </p>
               <div style={{ display: 'flex', gap: '12px' }}>
@@ -1033,6 +1224,40 @@ export default function AdminPage() {
         onClose={() => setShowAddStore(false)}
         onAdd={addStore}
       />
+      {/* Scroll to Top Button */}
+      {showScroll && (
+        <button
+          onClick={scrollToTop}
+          style={{
+            position: 'fixed',
+            bottom: '32px',
+            right: '32px',
+            width: '50px',
+            height: '50px',
+            borderRadius: '50%',
+            backgroundColor: '#8B1538',
+            color: '#fff',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(139,21,56,0.3)',
+            zIndex: 1000,
+            transition: 'all 0.2s ease-in-out',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.transform = 'translateY(-5px)';
+            e.currentTarget.style.boxShadow = '0 6px 16px rgba(139,21,56,0.4)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(139,21,56,0.3)';
+          }}
+        >
+          <ArrowUp style={{ width: 24, height: 24, strokeWidth: 3 }} />
+        </button>
+      )}
     </div>
   );
 }

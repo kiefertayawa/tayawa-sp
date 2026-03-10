@@ -5,7 +5,7 @@
 // ensure VITE_API_URL is set to your Express server URL.
 // ============================================================
 
-import type { Product, Store, Review, ApiResponse } from '../types';
+import type { Product, Store, Review, ProductReport, ApiResponse } from '../types';
 import {
   MOCK_STORES,
   MOCK_PRODUCTS,
@@ -124,6 +124,11 @@ export const productService = {
     }
     return api.get<ApiResponse<string[]>>(`/products/suggestions?q=${encodeURIComponent(query)}`);
   },
+
+  report: (productId: string, data: { storeId: string; reason: string }) => {
+    if (USE_MOCK) return mockResponse({ _id: `rep-${Date.now()}`, ...data, productId } as unknown as ProductReport);
+    return api.post<ApiResponse<ProductReport>>(`/products/${productId}/report`, data);
+  },
 };
 
 // ─── Stores ───────────────────────────────────────────────────
@@ -202,6 +207,11 @@ export const adminService = {
     return api.get<ApiResponse<Product[]>>('/admin/products/pending');
   },
 
+  getAllProducts: () => {
+    if (USE_MOCK) return mockResponse(MOCK_PRODUCTS);
+    return api.get<ApiResponse<Product[]>>('/admin/products');
+  },
+
   approveProduct: (id: string) => {
     if (USE_MOCK) {
       return mockResponse({ _id: id, status: 'approved' as const } as Product);
@@ -214,6 +224,11 @@ export const adminService = {
       return mockResponse({ _id: id, status: 'rejected' as const } as Product);
     }
     return api.patch<ApiResponse<Product>>(`/admin/products/${id}/reject`);
+  },
+
+  deleteProduct: (id: string) => {
+    if (USE_MOCK) return mockResponse({ _id: id });
+    return api.delete<ApiResponse<{}>>(`/admin/products/${id}`);
   },
 
   getPendingReviews: () => {
@@ -246,7 +261,18 @@ export const adminService = {
     return api.post<ApiResponse<{ token: string }>>('/admin/login', credentials);
   },
 
-  getStats: () => {
+  getStats: (): Promise<{
+    data: ApiResponse<{
+      pendingProducts: number;
+      approvedProducts: number;
+      rejectedProducts: number;
+      pendingReviews: number;
+      approvedReviews: number;
+      rejectedReviews: number;
+      pendingReports: number;
+      totalStores: number;
+    }>
+  }> => {
     if (USE_MOCK) {
       return mockResponse({
         pendingProducts: 5,
@@ -255,18 +281,26 @@ export const adminService = {
         pendingReviews: 3,
         approvedReviews: 12,
         rejectedReviews: 4,
+        pendingReports: 2,
         totalStores: MOCK_STORES.length,
       });
     }
-    return api.get<ApiResponse<{
-      pendingProducts: number;
-      approvedProducts: number;
-      rejectedProducts: number;
-      pendingReviews: number;
-      approvedReviews: number;
-      rejectedReviews: number;
-      totalStores: number;
-    }>>('/admin/stats');
+    return api.get('/admin/stats');
+  },
+
+  getPendingReports: () => {
+    if (USE_MOCK) return mockResponse([]);
+    return api.get<ApiResponse<ProductReport[]>>('/admin/reports/pending');
+  },
+
+  resolveReport: (id: string) => {
+    if (USE_MOCK) return mockResponse({ _id: id, status: 'resolved' as const } as ProductReport);
+    return api.patch<ApiResponse<ProductReport>>(`/admin/reports/${id}/resolve`);
+  },
+
+  ignoreReport: (id: string) => {
+    if (USE_MOCK) return mockResponse({ _id: id, status: 'ignored' as const } as ProductReport);
+    return api.patch<ApiResponse<ProductReport>>(`/admin/reports/${id}/ignore`);
   },
 
   addStore: (data: { name: string; address: string; lat: number; lng: number; image: string | File; peakHours?: string; offPeakHours?: string }) => {

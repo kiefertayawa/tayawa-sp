@@ -71,6 +71,18 @@ export interface Review {
   status?: 'pending' | 'approved' | 'rejected';
 }
 
+export interface ProductReport {
+  _id: string;
+  productId: string;
+  productName: string;
+  storeId: string;
+  storeName: string;
+  reason: string;
+  status: 'pending' | 'resolved' | 'ignored';
+  submittedDate: string;
+  createdAt: string;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T;

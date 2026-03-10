@@ -5,6 +5,7 @@ const Admin = require('../models/Admin');
 const Product = require('../models/Product');
 const Review = require('../models/Review');
 const Store = require('../models/Store');
+const Report = require('../models/Report');
 const auth = require('../middleware/auth');
 
 // ─── POST /api/admin/login ─────────────────────────────
@@ -39,7 +40,8 @@ router.get('/stats', auth, async (req, res) => {
   try {
     const [
       pendingProducts, approvedProducts, rejectedProducts,
-      pendingReviews, approvedReviews, rejectedReviews, totalStores
+      pendingReviews, approvedReviews, rejectedReviews,
+      pendingReports, totalStores
     ] = await Promise.all([
       Product.countDocuments({ status: 'pending' }),
       Product.countDocuments({ status: 'approved' }),
@@ -47,6 +49,7 @@ router.get('/stats', auth, async (req, res) => {
       Review.countDocuments({ status: 'pending' }),
       Review.countDocuments({ status: 'approved' }),
       Review.countDocuments({ status: 'rejected' }),
+      Report.countDocuments({ status: 'pending' }),
       Store.countDocuments(),
     ]);
     res.json({
@@ -59,6 +62,7 @@ router.get('/stats', auth, async (req, res) => {
         pendingReviews,
         approvedReviews,
         rejectedReviews,
+        pendingReports,
       },
     });
   } catch (err) {
@@ -71,6 +75,16 @@ router.get('/products/pending', auth, async (req, res) => {
   try {
     const pending = await Product.find({ status: 'pending' }).sort({ createdAt: -1 });
     res.json({ success: true, data: pending });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/admin/products — get ALL products (approved, pending, rejected)
+router.get('/products', auth, async (req, res) => {
+  try {
+    const products = await Product.find().sort({ updatedAt: -1, createdAt: -1 });
+    res.json({ success: true, data: products });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -278,6 +292,26 @@ router.patch('/products/:id/reject', auth, async (req, res) => {
   }
 });
 
+// DELETE /api/admin/products/:id — permanently delete a product
+router.delete('/products/:id', auth, async (req, res) => {
+  try {
+    const product = await Product.findByIdAndDelete(req.params.id);
+    if (!product) return res.status(404).json({ success: false, error: 'Product not found' });
+
+    // Delete image from Cloudinary if exists
+    if (product.imagePublicId) {
+      await deleteFromCloudinary(product.imagePublicId);
+    }
+
+    // Also delete any reports associated with this product
+    await Report.deleteMany({ productId: req.params.id });
+
+    res.json({ success: true, data: {} });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ─── Pending Reviews ──────────────────────────────────
 
 // GET /api/admin/reviews/pending
@@ -337,6 +371,45 @@ router.patch('/reviews/:id/reject', auth, async (req, res) => {
 });
 
 const { upload, uploadToCloudinary, deleteFromCloudinary } = require('../middleware/upload');
+
+// ─── Product Reports Management ───────────────────
+
+// GET /api/admin/reports/pending
+router.get('/reports/pending', auth, async (req, res) => {
+  try {
+    const reports = await Report.find({ status: 'pending' }).sort({ createdAt: -1 });
+    res.json({ success: true, data: reports });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PATCH /api/admin/reports/:id/resolve
+// (Mark the issue as handled — maybe the product was updated/deleted)
+router.patch('/reports/:id/resolve', auth, async (req, res) => {
+  try {
+    const report = await Report.findByIdAndUpdate(
+      req.params.id, { status: 'resolved' }, { new: true }
+    );
+    if (!report) return res.status(404).json({ success: false, error: 'Report not found' });
+    res.json({ success: true, data: report });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PATCH /api/admin/reports/:id/ignore
+router.patch('/reports/:id/ignore', auth, async (req, res) => {
+  try {
+    const report = await Report.findByIdAndUpdate(
+      req.params.id, { status: 'ignored' }, { new: true }
+    );
+    if (!report) return res.status(404).json({ success: false, error: 'Report not found' });
+    res.json({ success: true, data: report });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // ─── Store Management ────────────────────────────────
 // POST /api/admin/stores

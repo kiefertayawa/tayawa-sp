@@ -1,6 +1,6 @@
 const express = require('express');
-const router  = express.Router();
-const Store   = require('../models/Store');
+const router = express.Router();
+const Store = require('../models/Store');
 const Product = require('../models/Product');
 
 // GET /api/stores — get all stores
@@ -27,7 +27,10 @@ router.get('/:id', async (req, res) => {
 // GET /api/stores/:id/products — get products available at this store
 router.get('/:id/products', async (req, res) => {
   try {
-    const products = await Product.find({ 'prices.storeId': req.params.id });
+    const products = await Product.find({
+      'prices.storeId': req.params.id,
+      status: 'approved'
+    });
     res.json({ success: true, data: products });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

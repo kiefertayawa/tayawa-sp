@@ -368,7 +368,7 @@ export default function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
           </div>
           <button
             onClick={handleExportImage}
-            disabled={isExporting || items.length === 0}
+            disabled={isExporting}
             style={{
               width: '100%',
               padding: '12px',
