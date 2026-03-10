@@ -390,7 +390,7 @@ export default function AdminPage() {
             {[
               { label: 'Pending Products', value: stats.pendingProducts, color: '#8B1538' },
               { label: 'Pending Reviews', value: stats.pendingReviews, color: '#8B1538' },
-              { label: 'Pending Reports', value: stats.pendingReports, color: '#dc2626' },
+              { label: 'Pending Reports', value: stats.pendingReports, color: '#8B1538' },
             ].map(stat => (
               <div
                 key={stat.label}

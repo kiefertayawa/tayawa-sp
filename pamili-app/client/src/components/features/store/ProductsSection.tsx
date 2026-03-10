@@ -187,8 +187,25 @@ export default function ProductsSection({ storeId }: ProductsSectionProps) {
                                 </div>
                                 <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827', margin: 0 }}>Report Issue</h3>
                             </div>
-                            <button onClick={() => setReportingProduct(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>
-                                <X style={{ width: 20, height: 20 }} />
+                            <button
+                                onClick={() => setReportingProduct(null)}
+                                style={{
+                                    background: '#f3f4f6',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: '#6b7280',
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#e5e7eb'}
+                                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                            >
+                                <X style={{ width: 18, height: 18 }} />
                             </button>
                         </div>
 
