@@ -293,14 +293,19 @@ export const adminService = {
     return api.get<ApiResponse<ProductReport[]>>('/admin/reports/pending');
   },
 
+  getAllReports: () => {
+    if (USE_MOCK) return mockResponse([]);
+    return api.get<ApiResponse<ProductReport[]>>('/admin/reports');
+  },
+
   resolveReport: (id: string) => {
     if (USE_MOCK) return mockResponse({ _id: id, status: 'resolved' as const } as ProductReport);
     return api.patch<ApiResponse<ProductReport>>(`/admin/reports/${id}/resolve`);
   },
 
   ignoreReport: (id: string) => {
-    if (USE_MOCK) return mockResponse({ _id: id, status: 'ignored' as const } as ProductReport);
-    return api.patch<ApiResponse<ProductReport>>(`/admin/reports/${id}/ignore`);
+    if (USE_MOCK) return mockResponse({});
+    return api.delete<ApiResponse<{}>>(`/admin/reports/${id}/ignore`);
   },
 
   addStore: (data: { name: string; address: string; lat: number; lng: number; image: string | File; peakHours?: string; offPeakHours?: string }) => {

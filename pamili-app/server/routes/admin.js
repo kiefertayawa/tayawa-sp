@@ -384,6 +384,16 @@ router.get('/reports/pending', auth, async (req, res) => {
   }
 });
 
+// GET /api/admin/reports — all reports (pending + resolved)
+router.get('/reports', auth, async (req, res) => {
+  try {
+    const reports = await Report.find().sort({ createdAt: -1 });
+    res.json({ success: true, data: reports });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // PATCH /api/admin/reports/:id/resolve
 // (Mark the issue as handled — maybe the product was updated/deleted)
 router.patch('/reports/:id/resolve', auth, async (req, res) => {
@@ -398,14 +408,12 @@ router.patch('/reports/:id/resolve', auth, async (req, res) => {
   }
 });
 
-// PATCH /api/admin/reports/:id/ignore
-router.patch('/reports/:id/ignore', auth, async (req, res) => {
+// DELETE /api/admin/reports/:id/ignore — permanently remove (ignored = gone)
+router.delete('/reports/:id/ignore', auth, async (req, res) => {
   try {
-    const report = await Report.findByIdAndUpdate(
-      req.params.id, { status: 'ignored' }, { new: true }
-    );
+    const report = await Report.findByIdAndDelete(req.params.id);
     if (!report) return res.status(404).json({ success: false, error: 'Report not found' });
-    res.json({ success: true, data: report });
+    res.json({ success: true, data: {} });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

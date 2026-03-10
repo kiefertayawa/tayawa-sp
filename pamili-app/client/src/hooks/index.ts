@@ -192,7 +192,7 @@ export function useReviews(storeId: string | undefined) {
 export function usePendingItems(isAdmin: boolean = true) {
   const [products, setProducts] = useState<Product[]>([]);
   const [pendingReviews, setPendingReviews] = useState<Review[]>([]);
-  const [pendingReports, setPendingReports] = useState<ProductReport[]>([]);
+  const [reports, setReports] = useState<ProductReport[]>([]);
   const [stats, setStats] = useState({
     pendingProducts: 0,
     approvedProducts: 0,
@@ -218,11 +218,11 @@ export function usePendingItems(isAdmin: boolean = true) {
         adminService.getPendingReviews(),
         adminService.getStats(),
         adminService.getAllStores(),
-        adminService.getPendingReports(),
+        adminService.getAllReports(),
       ]);
       setProducts(prodRes.data.data);
       setPendingReviews(revRes.data.data);
-      setPendingReports(reportRes.data.data);
+      setReports(reportRes.data.data);
       setStats({
         ...statsRes.data.data,
         pendingReports: statsRes.data.data.pendingReports || 0
@@ -310,7 +310,7 @@ export function usePendingItems(isAdmin: boolean = true) {
   const resolveReport = async (id: string) => {
     try {
       await adminService.resolveReport(id);
-      setPendingReports((r) => r.filter((x) => x._id !== id));
+      setReports((r) => r.map(x => x._id === id ? { ...x, status: 'resolved' as const } : x));
       refreshStats();
       return true;
     } catch { return false; }
@@ -319,7 +319,7 @@ export function usePendingItems(isAdmin: boolean = true) {
   const ignoreReport = async (id: string) => {
     try {
       await adminService.ignoreReport(id);
-      setPendingReports((r) => r.filter((x) => x._id !== id));
+      setReports((r) => r.filter((x) => x._id !== id));
       refreshStats();
       return true;
     } catch { return false; }
@@ -343,7 +343,7 @@ export function usePendingItems(isAdmin: boolean = true) {
   return {
     products,
     pendingReviews,
-    pendingReports,
+    reports,
     stores,
     stats,
     loading,

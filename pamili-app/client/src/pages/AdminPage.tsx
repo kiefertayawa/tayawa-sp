@@ -6,6 +6,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { usePendingItems } from '../hooks';
 import { useAuth } from '../context/AuthContext';
+import type { ProductReport } from '../types';
 
 // Helper to format as "Mar 3, 2026"
 const formatShortDate = (dateStr?: string) => {
@@ -123,7 +124,7 @@ export default function AdminPage() {
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
 
   const {
-    products, pendingReviews, pendingReports, stores, stats, loading,
+    products, pendingReviews, reports, stores, stats, loading,
     approveProduct, rejectProduct, deleteProduct, approveReview, rejectReview,
     resolveReport, ignoreReport,
     addStore, deleteStore
@@ -443,7 +444,7 @@ export default function AdminPage() {
         >
           {/* Tab bar */}
           <div style={{ display: 'flex', padding: '6px', backgroundColor: '#f3f4f6', gap: '4px' }}>
-            {(['products', 'stores', 'reviews', 'reports'] as const).map(t => (
+            {(['products', 'stores', 'reports', 'reviews'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -458,12 +459,12 @@ export default function AdminPage() {
                 }}
               >
                 {t === 'products'
-                  ? `All Products (${products.length})`
+                  ? `Products (${products.filter(p => p.status !== 'rejected').length})`
                   : t === 'stores'
-                    ? `All Stores (${stores.length})`
-                    : t === 'reviews'
-                      ? `Pending Reviews (${pendingReviews.length})`
-                      : `Pending Reports (${pendingReports.length})`}
+                    ? `Stores (${stores.length})`
+                    : t === 'reports'
+                      ? `Reports (${reports.length})`
+                      : `Reviews (${pendingReviews.length})`}
               </button>
             ))}
           </div>
@@ -476,7 +477,7 @@ export default function AdminPage() {
               ))}
             </div>
           ) : tab === 'products' ? (
-            products.length === 0 ? (
+            products.filter(p => p.status !== 'rejected').length === 0 ? (
               <div style={{ padding: '64px', textAlign: 'center', color: '#9ca3af' }}>
                 <CheckCircle style={{ width: 40, height: 40, color: '#e5e7eb', margin: '0 auto 8px' }} />
                 <p style={{ fontSize: '0.875rem' }}>No products found</p>
@@ -501,14 +502,14 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {products.map((p, idx) => (
+                  {products.filter(p => p.status !== 'rejected').map((p, idx) => (
                     <tr
                       key={p._id}
                       onMouseEnter={() => setHoveredRow(p._id)}
                       onMouseLeave={() => setHoveredRow(null)}
                       onClick={() => handleOpenProductDetail(p)}
                       style={{
-                        borderBottom: idx < products.length - 1 ? '1px solid #f9fafb' : 'none',
+                        borderBottom: idx < products.filter(p => p.status !== 'rejected').length - 1 ? '1px solid #f9fafb' : 'none',
                         backgroundColor: hoveredRow === p._id ? '#f9fafb' : 'transparent',
                         cursor: 'pointer',
                         transition: 'background-color 0.2s',
@@ -803,77 +804,103 @@ export default function AdminPage() {
                       ))}
                     </tbody>
                   </table>
-                )) : (
-            pendingReports.length === 0 ? (
-              <div style={{ padding: '64px', textAlign: 'center', color: '#9ca3af' }}>
-                <CheckCircle style={{ width: 40, height: 40, color: '#e5e7eb', margin: '0 auto 8px' }} />
-                <p style={{ fontSize: '0.875rem' }}>No pending reports</p>
-              </div>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    {['Product', 'Store', 'Reason', 'Date', 'Actions'].map(h => (
-                      <th
-                        key={h}
-                        style={{
-                          textAlign: 'left', padding: '16px 20px',
-                          fontSize: '0.8rem', fontWeight: 700,
-                          color: '#374151',
-                        }}
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingReports.map((r, idx) => (
-                    <tr
-                      key={r._id}
-                      onMouseEnter={() => setHoveredRow(r._id)}
-                      onMouseLeave={() => setHoveredRow(null)}
-                      style={{
-                        borderBottom: idx < pendingReports.length - 1 ? '1px solid #f9fafb' : 'none',
-                        backgroundColor: hoveredRow === r._id ? '#f9fafb' : 'transparent',
-                        transition: 'background-color 0.2s',
-                        cursor: 'default'
-                      }}
-                    >
-                      <td style={{ padding: '16px 20px', fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>{r.productName}</td>
-                      <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#374151' }}>{r.storeName}</td>
-                      <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#6b7280', maxWidth: '300px', wordBreak: 'break-word' }}>{r.reason}</td>
-                      <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#6b7280' }}>{formatShortDate(r.submittedDate)}</td>
-                      <td style={{ padding: '16px 20px' }}>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button
-                            onClick={() => handleResolveReport(r._id)}
+                )) : tab === 'reports' ? (
+                  reports.length === 0 ? (
+                    <div style={{ padding: '64px', textAlign: 'center', color: '#9ca3af' }}>
+                      <CheckCircle style={{ width: 40, height: 40, color: '#e5e7eb', margin: '0 auto 8px' }} />
+                      <p style={{ fontSize: '0.875rem' }}>No reports found</p>
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                          {([
+                            { label: 'Product', width: '190px' },
+                            { label: 'Store', width: '200px' },
+                            { label: 'Reason', width: '350px' },
+                            { label: 'Date Reported', width: '130px' },
+                            { label: 'Status', width: '120px' },
+                            { label: 'Actions', width: '210px' },
+                          ] as { label: string; width?: string }[]).map(({ label, width }) => (
+                            <th
+                              key={label}
+                              style={{
+                                textAlign: 'left', padding: '16px 20px',
+                                fontSize: '0.8rem', fontWeight: 700,
+                                color: '#374151', width, overflow: 'hidden',
+                              }}
+                            >
+                              {label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reports.map((r: ProductReport, idx: number) => (
+                          <tr
+                            key={r._id}
+                            onMouseEnter={() => setHoveredRow(r._id)}
+                            onMouseLeave={() => setHoveredRow(null)}
                             style={{
-                              padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
-                              color: '#fff', backgroundColor: '#16a34a',
-                              border: 'none', borderRadius: '6px', cursor: 'pointer',
+                              borderBottom: idx < reports.length - 1 ? '1px solid #f9fafb' : 'none',
+                              backgroundColor: hoveredRow === r._id ? '#f9fafb' : 'transparent',
+                              transition: 'background-color 0.2s',
+                              cursor: 'default'
                             }}
                           >
-                            Resolve
-                          </button>
-                          <button
-                            onClick={() => handleIgnoreReport(r._id, `Report for ${r.productName}`)}
-                            style={{
-                              padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
-                              color: '#6b7280', backgroundColor: '#fff',
-                              border: '1.5px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer',
-                            }}
-                          >
-                            Ignore
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )
-          )}
+                            <td style={{ padding: '16px 20px', fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>{r.productName}</td>
+                            <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#374151' }}>{r.storeName}</td>
+                            <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#6b7280', maxWidth: '260px', wordBreak: 'break-word' }}>{r.reason}</td>
+                            <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{formatShortDate(r.submittedDate)}</td>
+                            <td style={{ padding: '16px 20px' }}>
+                              {r.status === 'resolved' ? (
+                                <span style={{
+                                  fontSize: '0.75rem', fontWeight: 700,
+                                  color: '#16a34a', backgroundColor: '#dcfce7',
+                                  borderRadius: '999px', padding: '3px 10px',
+                                }}>Resolved</span>
+                              ) : (
+                                <span style={{
+                                  fontSize: '0.75rem', fontWeight: 700,
+                                  color: '#d97706', backgroundColor: '#fef3c7',
+                                  borderRadius: '999px', padding: '3px 10px',
+                                }}>Pending</span>
+                              )}
+                            </td>
+                            <td style={{ padding: '16px 20px' }}>
+                              {r.status !== 'resolved' ? (
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                  <button
+                                    onClick={() => handleResolveReport(r._id)}
+                                    style={{
+                                      padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
+                                      color: '#fff', backgroundColor: '#16a34a',
+                                      border: 'none', borderRadius: '6px', cursor: 'pointer',
+                                    }}
+                                  >
+                                    Resolve
+                                  </button>
+                                  <button
+                                    onClick={() => handleIgnoreReport(r._id, `Report for ${r.productName}`)}
+                                    style={{
+                                      padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
+                                      color: '#6b7280', backgroundColor: '#fff',
+                                      border: '1.5px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer',
+                                    }}
+                                  >
+                                    Ignore
+                                  </button>
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>—</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )
+                ) : null}
         </div>
       </div>
 

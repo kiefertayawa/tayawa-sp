@@ -47,7 +47,7 @@ export default function ProductsSection({ storeId }: ProductsSectionProps) {
     return (
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e5e7eb', padding: '24px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-                <h2 style={{ fontWeight: 600, color: '#111827', fontSize: '0.95rem', margin: 0, marginBottom: '10px' }}>Available Products</h2>
+                <h2 style={{ fontWeight: 600, color: '#111827', fontSize: '0.95rem', margin: 0, marginBottom: '10px' }}>Available Product ({products.length})</h2>
             </div>
 
             {loading ? (
