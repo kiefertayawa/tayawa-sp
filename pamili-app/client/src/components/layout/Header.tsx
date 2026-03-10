@@ -292,7 +292,7 @@ export default function Header({ onCartClick, onSubmitClick }: HeaderProps) {
                     borderRight: '6px solid transparent',
                     borderBottom: '6px solid #fff'
                   }} />
-                  See a new product in the store? Add it here!
+                  See a new product in a store? Add it here!
                 </div>
               )}
             </div>

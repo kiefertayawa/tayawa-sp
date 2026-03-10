@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { X, Plus, Minus, Trash2, ShoppingBag, Check, Camera } from 'lucide-react';
+import { X, Plus, Minus, Trash2, ShoppingBag, Check, Download } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { toPng } from 'html-to-image';
 import { toast } from 'sonner';
@@ -387,7 +387,7 @@ export default function ShoppingCart({ isOpen, onClose }: ShoppingCartProps) {
               boxShadow: '0 4px 12px rgba(1,68,33,0.2)'
             }}
           >
-            <Camera style={{ width: 18, height: 18 }} />
+            <Download style={{ width: 18, height: 18 }} />
             {isExporting ? 'Generating...' : 'Export List as Image'}
           </button>
 
