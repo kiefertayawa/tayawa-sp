@@ -122,13 +122,21 @@ export default function AdminPage() {
 
   // Hover state for rows
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
-
   const {
     products, pendingReviews, reports, stores, stats, loading,
     approveProduct, rejectProduct, deleteProduct, approveReview, rejectReview,
     resolveReport, ignoreReport,
     addStore, deleteStore
   } = usePendingItems(isAdmin);
+
+  // Filter out rejected items and sort so 'pending' always stays on top
+  const sortedProducts = [...products]
+    .filter(p => p.status !== 'rejected')
+    .sort((a, b) => {
+      if (a.status === 'pending' && b.status !== 'pending') return -1;
+      if (a.status !== 'pending' && b.status === 'pending') return 1;
+      return 0;
+    });
 
   // Scroll Lock for Modals
   useEffect(() => {
@@ -477,7 +485,7 @@ export default function AdminPage() {
               ))}
             </div>
           ) : tab === 'products' ? (
-            products.filter(p => p.status !== 'rejected').length === 0 ? (
+            sortedProducts.length === 0 ? (
               <div style={{ padding: '64px', textAlign: 'center', color: '#9ca3af' }}>
                 <CheckCircle style={{ width: 40, height: 40, color: '#e5e7eb', margin: '0 auto 8px' }} />
                 <p style={{ fontSize: '0.875rem' }}>No products found</p>
@@ -486,7 +494,7 @@ export default function AdminPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    {['Image', 'Product Name', 'Store', 'Price', 'Submitted By', 'Date', 'Actions'].map(h => (
+                    {['Image', 'Product Name', 'Store', 'Price', 'Submitted By', 'Date Created', 'Actions'].map(h => (
                       <th
                         key={h}
                         style={{
@@ -502,14 +510,14 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {products.filter(p => p.status !== 'rejected').map((p, idx) => (
+                  {sortedProducts.map((p, idx) => (
                     <tr
                       key={p._id}
                       onMouseEnter={() => setHoveredRow(p._id)}
                       onMouseLeave={() => setHoveredRow(null)}
                       onClick={() => handleOpenProductDetail(p)}
                       style={{
-                        borderBottom: idx < products.filter(p => p.status !== 'rejected').length - 1 ? '1px solid #f9fafb' : 'none',
+                        borderBottom: idx < sortedProducts.length - 1 ? '1px solid #f9fafb' : 'none',
                         backgroundColor: hoveredRow === p._id ? '#f9fafb' : 'transparent',
                         cursor: 'pointer',
                         transition: 'background-color 0.2s',
@@ -702,7 +710,7 @@ export default function AdminPage() {
                           { l: 'Store', w: '22%' },
                           { l: 'Rating', w: '12%' },
                           { l: 'Review', w: '40%' },
-                          { l: 'Date', w: '13%' },
+                          { l: 'Date Submitted', w: '13%' },
                           { l: 'Actions', w: '13%' }
                         ].map(h => (
                           <th

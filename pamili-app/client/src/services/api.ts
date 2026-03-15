@@ -186,7 +186,7 @@ export const adminService = {
     lat: number;
     lng: number;
     image: string | File;
-    operatingHours?: string;
+    operatingHours: string;
     peakHours?: string;
     offPeakHours?: string
   }) => {
