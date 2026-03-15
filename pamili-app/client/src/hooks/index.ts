@@ -290,7 +290,16 @@ export function usePendingItems(isAdmin: boolean = true) {
     } catch { return false; }
   };
 
-  const addStore = async (data: { name: string; address: string; lat: number; lng: number; image: string | File; peakHours?: string; offPeakHours?: string }) => {
+  const addStore = async (data: {
+    name: string;
+    address: string;
+    lat: number;
+    lng: number;
+    image: string | File;
+    operatingHours?: string;
+    peakHours?: string;
+    offPeakHours?: string
+  }) => {
     try {
       await adminService.addStore(data);
       await load(true);

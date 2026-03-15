@@ -4,6 +4,7 @@ const storeSchema = new mongoose.Schema({
   name: { type: String, required: true },
   location: { lat: Number, lng: Number },
   address: { type: String, required: true },
+  operatingHours: { type: String, default: '' },
   rating: { type: Number, default: 0 },
   reviewCount: { type: Number, default: 0 },
   peakHours: { type: String, default: '' },

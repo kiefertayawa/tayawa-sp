@@ -308,7 +308,16 @@ export const adminService = {
     return api.delete<ApiResponse<{}>>(`/admin/reports/${id}/ignore`);
   },
 
-  addStore: (data: { name: string; address: string; lat: number; lng: number; image: string | File; peakHours?: string; offPeakHours?: string }) => {
+  addStore: (data: {
+    name: string;
+    address: string;
+    lat: number;
+    lng: number;
+    image: string | File;
+    operatingHours?: string;
+    peakHours?: string;
+    offPeakHours?: string
+  }) => {
     if (USE_MOCK) {
       const store: Store = {
         _id: `store-${Date.now()}`,
@@ -316,6 +325,7 @@ export const adminService = {
         address: data.address,
         location: { lat: data.lat, lng: data.lng },
         image: typeof data.image === 'string' ? data.image : 'https://placehold.co/400x400?text=Mock',
+        operatingHours: data.operatingHours || '',
         peakHours: data.peakHours || '',
         offPeakHours: data.offPeakHours || '',
         rating: 0,
@@ -331,6 +341,7 @@ export const adminService = {
     formData.append('address', data.address);
     formData.append('lat', data.lat.toString());
     formData.append('lng', data.lng.toString());
+    if (data.operatingHours) formData.append('operatingHours', data.operatingHours);
     if (data.peakHours) formData.append('peakHours', data.peakHours);
     if (data.offPeakHours) formData.append('offPeakHours', data.offPeakHours);
 

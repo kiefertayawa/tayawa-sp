@@ -39,6 +39,7 @@ export interface Store {
   reviewCount: number;
   peakHours: string;
   offPeakHours: string;
+  operatingHours: string;
   image: string;
   lastCrowdLevel?: 'low' | 'medium' | 'high' | 'not_sure';
   lastCrowdTime?: string;

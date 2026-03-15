@@ -125,10 +125,18 @@ export default function StorePage() {
           </h1>
 
           {/* Address */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
             <MapPin style={{ width: 15, height: 15, color: '#6b7280', flexShrink: 0 }} />
             <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>{store.address}</span>
           </div>
+
+          {/* Operating Hours */}
+          {store.operatingHours && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+              <Clock style={{ width: 15, height: 15, color: '#6b7280', flexShrink: 0 }} />
+              <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>Operating Hours: {store.operatingHours}</span>
+            </div>
+          )}
 
           {/* Rating */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>

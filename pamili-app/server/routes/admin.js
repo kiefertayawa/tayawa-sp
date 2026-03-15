@@ -423,7 +423,7 @@ router.delete('/reports/:id/ignore', auth, async (req, res) => {
 // POST /api/admin/stores
 router.post('/stores', auth, upload.single('image'), async (req, res) => {
   try {
-    const { name, address, lat, lng, peakHours, offPeakHours } = req.body;
+    const { name, address, lat, lng, operatingHours, peakHours, offPeakHours } = req.body;
     let image = req.body.image;
     let imagePublicId = '';
 
@@ -453,6 +453,7 @@ router.post('/stores', auth, upload.single('image'), async (req, res) => {
       location: { lat: parseFloat(lat), lng: parseFloat(lng) },
       image: image || '',
       imagePublicId: imagePublicId || '',
+      operatingHours: operatingHours || '',
       peakHours: peakHours || '',
       offPeakHours: offPeakHours || '',
       rating: 0,
@@ -460,6 +461,47 @@ router.post('/stores', auth, upload.single('image'), async (req, res) => {
     });
 
     res.status(201).json({ success: true, data: store });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PATCH /api/admin/stores/:id
+router.patch('/stores/:id', auth, upload.single('image'), async (req, res) => {
+  try {
+    const { name, address, lat, lng, operatingHours, peakHours, offPeakHours } = req.body;
+    let image, imagePublicId;
+
+    if (req.file) {
+      try {
+        const result = await uploadToCloudinary(req.file.buffer, 'pamili/stores');
+        image = result.url;
+        imagePublicId = result.public_id;
+      } catch (uploadError) {
+        console.error('Image upload failed during store update:', uploadError);
+      }
+    }
+
+    const updateData = {
+      name,
+      address,
+      operatingHours,
+      peakHours,
+      offPeakHours
+    };
+
+    if (lat && lng) {
+      updateData.location = { lat: parseFloat(lat), lng: parseFloat(lng) };
+    }
+    if (image) {
+      updateData.image = image;
+      updateData.imagePublicId = imagePublicId;
+    }
+
+    const store = await Store.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    if (!store) return res.status(404).json({ success: false, error: 'Store not found' });
+
+    res.json({ success: true, data: store });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

@@ -1298,7 +1298,7 @@ interface AddStoreModalProps {
 }
 
 function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
-  const [form, setForm] = useState({ name: '', address: '', lat: '', lng: '', peakHours: '', offPeakHours: '' });
+  const [form, setForm] = useState({ name: '', address: '', lat: '', lng: '', operatingHours: '', peakHours: '', offPeakHours: '' });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
@@ -1332,6 +1332,7 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
     if (!imageFile) newFieldErrors.imageFile = true;
     if (!form.name.trim()) newFieldErrors.name = true;
     if (!form.address.trim()) newFieldErrors.address = true;
+    if (!form.operatingHours.trim()) newFieldErrors.operatingHours = true;
     if (!form.lat) newFieldErrors.lat = true;
     if (!form.lng) newFieldErrors.lng = true;
 
@@ -1340,7 +1341,12 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
       return;
     }
 
-    const timeFormat = /^(1[0-2]|[1-9]):[0-5][0-9]-(1[0-2]|[1-9]):[0-5][0-9](AM|PM)$/;
+    const timeFormat = /^((1[0-2]|[1-9]):[0-5][0-9](AM|PM)?)-((1[0-2]|[1-9]):[0-5][0-9](AM|PM))$/;
+
+    if (form.operatingHours.trim() && form.operatingHours.trim() !== 'Open 24 hours' && !timeFormat.test(form.operatingHours.trim())) {
+      toast.error('Operating Hours must be "Open 24 hours" or in the format 6:00AM-10:00PM');
+      return;
+    }
 
     if (form.peakHours.trim() && !timeFormat.test(form.peakHours.trim())) {
       toast.error('Peak Hour must be in the format 9:00-10:00AM (12-hour, case-sensitive AM/PM)');
@@ -1364,6 +1370,7 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
       lat: parseFloat(form.lat),
       lng: parseFloat(form.lng),
       image: imageFile as File,
+      operatingHours: form.operatingHours.trim(),
       peakHours: form.peakHours.trim(),
       offPeakHours: form.offPeakHours.trim()
     });
@@ -1371,7 +1378,7 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
     if (ok) {
       toast.success('Store added successfully!');
       onClose();
-      setForm({ name: '', address: '', lat: '', lng: '', peakHours: '', offPeakHours: '' });
+      setForm({ name: '', address: '', lat: '', lng: '', operatingHours: '', peakHours: '', offPeakHours: '' });
       setImageFile(null);
       setPreviewUrl('');
       setFieldErrors({});
@@ -1557,6 +1564,23 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
               </div>
             )}
             {fieldErrors.lat && <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>Please click the map to pick a location!</p>}
+          </div>
+
+          {/* Operating Hours */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+              Operating Hours <span style={{ color: '#8B1538' }}>*</span>
+            </label>
+            <input
+              type="text" value={form.operatingHours}
+              onChange={e => {
+                setForm({ ...form, operatingHours: e.target.value });
+                if (e.target.value.trim()) setFieldErrors(prev => ({ ...prev, operatingHours: false }));
+              }}
+              placeholder='e.g. 6:00AM-10:00PM or "Open 24 hours"'
+              style={inputStyle('operatingHours')}
+            />
+            {fieldErrors.operatingHours && <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>This field is required!</p>}
           </div>
 
           {/* Peak / Off-Peak Hours */}
