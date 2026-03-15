@@ -177,9 +177,16 @@ export default function SearchPage() {
     }),
   );
 
-  // lowest price per product
-  const lowestPrice: Record<string, number> = {};
-  results.forEach(p => { lowestPrice[p._id] = Math.min(...p.prices.map(x => x.price)); });
+  // lowest price per product map
+  const lowestPriceMap: Record<string, number> = {};
+  results.forEach(p => {
+    lowestPriceMap[p._id] = Math.min(...p.prices.map(x => x.price));
+  });
+
+  // Global minimum among ALL search results for the current search session
+  const globalMinPrice = results.length > 0
+    ? Math.min(...results.flatMap(p => p.prices.map(x => x.price)))
+    : Infinity;
 
   // apply filters + sort (explicit check for 'default' which maps to 'price-asc')
   const effectiveSort = filters.sortBy === 'default' ? 'price-asc' : filters.sortBy;
@@ -493,8 +500,9 @@ export default function SearchPage() {
 
                         {/* Product rows */}
                         {products.map(({ product, price, inStock }) => {
-                          const isLowest = price === lowestPrice[product._id] && product.prices.length > 1;
-                          const diff = price - lowestPrice[product._id];
+                          const isLowestForProduct = price === lowestPriceMap[product._id] && product.prices.length > 1;
+                          const isGlobalCheapest = price === globalMinPrice && totalProducts > 1;
+                          const diff = price - lowestPriceMap[product._id];
                           return (
                             <div key={`${storeId}-${product._id}`} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '12px 20px', borderTop: '1px solid #f9fafb' }}>
                               {/* Image */}
@@ -521,9 +529,22 @@ export default function SearchPage() {
                                   </p>
                                 )}
 
-                                {isLowest && (
-                                  <span style={{ marginTop: '2px', display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.72rem', fontWeight: 700, color: '#fff', backgroundColor: '#16a34a', borderRadius: '999px', padding: '2px 9px', width: 'fit-content' }}>
-                                    <TrendingDown style={{ width: 10, height: 10 }} /> Lowest Price
+                                {(isLowestForProduct || isGlobalCheapest) && (
+                                  <span style={{
+                                    marginTop: '2px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700,
+                                    color: '#fff',
+                                    backgroundColor: '#16a34a',
+                                    borderRadius: '999px',
+                                    padding: '2px 9px',
+                                    width: 'fit-content'
+                                  }}>
+                                    <TrendingDown style={{ width: 10, height: 10 }} />
+                                    Lowest Price
                                   </span>
                                 )}
                               </div>
@@ -531,7 +552,11 @@ export default function SearchPage() {
                               {/* Right: price + buttons */}
                               <div style={{ textAlign: 'right', flexShrink: 0 }}>
                                 <p style={{ fontSize: '1.1rem', fontWeight: 800, color: '#8B1538', margin: '0 0 2px' }}>₱{price.toFixed(2)}</p>
-                                {!isLowest && diff > 0 && <p style={{ fontSize: '0.74rem', color: '#ef4444', margin: '0 0 6px' }}>+₱{diff.toFixed(2)}</p>}
+                                {!isGlobalCheapest && !isLowestForProduct && (price > globalMinPrice) && (
+                                  <p style={{ fontSize: '0.74rem', color: '#ef4444', margin: '0 0 6px' }}>
+                                    +₱{(price - globalMinPrice).toFixed(2)}
+                                  </p>
+                                )}
                                 <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', marginTop: '6px' }}>
                                   <button onClick={() => navigate(`/store/${storeId}`)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 11px', fontSize: '0.78rem', border: '1px solid #e5e7eb', borderRadius: '7px', backgroundColor: '#fff', color: '#374151', cursor: 'pointer' }}>
                                     <Store style={{ width: 12, height: 12 }} /> View Store
