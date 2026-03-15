@@ -502,7 +502,6 @@ export default function SearchPage() {
                         {products.map(({ product, price, inStock }) => {
                           const isLowestForProduct = price === lowestPriceMap[product._id] && product.prices.length > 1;
                           const isGlobalCheapest = price === globalMinPrice && totalProducts > 1;
-                          const diff = price - lowestPriceMap[product._id];
                           return (
                             <div key={`${storeId}-${product._id}`} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '12px 20px', borderTop: '1px solid #f9fafb' }}>
                               {/* Image */}
