@@ -193,6 +193,7 @@ export function usePendingItems(isAdmin: boolean = true) {
   const [products, setProducts] = useState<Product[]>([]);
   const [pendingReviews, setPendingReviews] = useState<Review[]>([]);
   const [reports, setReports] = useState<ProductReport[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
   const [stats, setStats] = useState({
     pendingProducts: 0,
     approvedProducts: 0,
@@ -204,38 +205,81 @@ export function usePendingItems(isAdmin: boolean = true) {
     totalStores: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [stores, setStores] = useState<Store[]>([]);
 
-  const load = useCallback(async (silent = false) => {
-    if (!isAdmin) {
-      setLoading(false);
-      return;
-    }
+  // Pagination Metadata
+  const [pagination, setPagination] = useState({
+    products: { page: 1, totalPages: 1, total: 0 },
+    stores: { page: 1, totalPages: 1, total: 0 },
+    reports: { page: 1, totalPages: 1, total: 0 },
+    reviews: { page: 1, totalPages: 1, total: 0 },
+  });
+
+  const fetchProducts = useCallback(async (page = 1, silent = false) => {
+    if (!isAdmin) return;
     if (!silent) setLoading(true);
     try {
-      const [prodRes, revRes, statsRes, storeRes, reportRes] = await Promise.all([
-        adminService.getAllProducts(),
-        adminService.getPendingReviews(),
-        adminService.getStats(),
-        adminService.getAllStores(),
-        adminService.getAllReports(),
-      ]);
-      setProducts(prodRes.data.data);
-      setPendingReviews(revRes.data.data);
-      setReports(reportRes.data.data);
-      setStats({
-        ...statsRes.data.data,
-        pendingReports: statsRes.data.data.pendingReports || 0
-      });
-      setStores(storeRes.data.data);
+      const res = await adminService.getAllProducts(page);
+      setProducts(res.data.data);
+      if (res.data.pagination) {
+        setPagination(prev => ({ ...prev, products: res.data.pagination! }));
+      }
     } catch (err) {
-      console.error('Failed to load admin data:', err);
+      console.error('Failed to load products:', err);
     } finally {
       setLoading(false);
     }
   }, [isAdmin]);
 
-  const refreshStats = async () => {
+  const fetchStores = useCallback(async (page = 1, silent = false) => {
+    if (!isAdmin) return;
+    if (!silent) setLoading(true);
+    try {
+      const res = await adminService.getAllStores(page);
+      setStores(res.data.data);
+      if (res.data.pagination) {
+        setPagination(prev => ({ ...prev, stores: res.data.pagination! }));
+      }
+    } catch (err) {
+      console.error('Failed to load stores:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAdmin]);
+
+  const fetchReports = useCallback(async (page = 1, silent = false) => {
+    if (!isAdmin) return;
+    if (!silent) setLoading(true);
+    try {
+      const res = await adminService.getAllReports(page);
+      setReports(res.data.data);
+      if (res.data.pagination) {
+        setPagination(prev => ({ ...prev, reports: res.data.pagination! }));
+      }
+    } catch (err) {
+      console.error('Failed to load reports:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAdmin]);
+
+  const fetchReviews = useCallback(async (page = 1, silent = false) => {
+    if (!isAdmin) return;
+    if (!silent) setLoading(true);
+    try {
+      const res = await adminService.getPendingReviews(page);
+      setPendingReviews(res.data.data);
+      if (res.data.pagination) {
+        setPagination(prev => ({ ...prev, reviews: res.data.pagination! }));
+      }
+    } catch (err) {
+      console.error('Failed to load reviews:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAdmin]);
+
+  const fetchStats = useCallback(async () => {
+    if (!isAdmin) return;
     try {
       const res = await adminService.getStats();
       setStats({
@@ -243,13 +287,30 @@ export function usePendingItems(isAdmin: boolean = true) {
         pendingReports: res.data.data.pendingReports || 0
       });
     } catch { }
-  };
+  }, [isAdmin]);
+
+  const loadAll = useCallback(async (silent = false) => {
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
+    if (!silent) setLoading(true);
+    await Promise.all([
+      fetchProducts(pagination.products.page, true),
+      fetchReviews(pagination.reviews.page, true),
+      fetchStores(pagination.stores.page, true),
+      fetchReports(pagination.reports.page, true),
+      fetchStats()
+    ]);
+    setLoading(false);
+  }, [isAdmin, fetchProducts, fetchReviews, fetchStores, fetchReports, fetchStats, pagination.products.page, pagination.reviews.page, pagination.stores.page, pagination.reports.page]);
+
 
   const approveProduct = async (id: string) => {
     try {
       await adminService.approveProduct(id);
-      setProducts((p) => p.map(x => x._id === id ? { ...x, status: 'approved' as const } : x));
-      refreshStats();
+      fetchProducts(pagination.products.page, true);
+      fetchStats();
       return true;
     } catch { return false; }
   };
@@ -257,8 +318,8 @@ export function usePendingItems(isAdmin: boolean = true) {
   const rejectProduct = async (id: string) => {
     try {
       await adminService.rejectProduct(id);
-      setProducts((p) => p.map(x => x._id === id ? { ...x, status: 'rejected' as const } : x));
-      refreshStats();
+      fetchProducts(pagination.products.page, true);
+      fetchStats();
       return true;
     } catch { return false; }
   };
@@ -266,8 +327,8 @@ export function usePendingItems(isAdmin: boolean = true) {
   const deleteProduct = async (id: string) => {
     try {
       await adminService.deleteProduct(id);
-      setProducts((p) => p.filter((x) => x._id !== id));
-      refreshStats();
+      fetchProducts(pagination.products.page, true);
+      fetchStats();
       return true;
     } catch { return false; }
   };
@@ -275,8 +336,8 @@ export function usePendingItems(isAdmin: boolean = true) {
   const approveReview = async (id: string) => {
     try {
       await adminService.approveReview(id);
-      setPendingReviews((r) => r.filter((x) => x._id !== id));
-      refreshStats();
+      fetchReviews(pagination.reviews.page, true);
+      fetchStats();
       return true;
     } catch { return false; }
   };
@@ -284,8 +345,8 @@ export function usePendingItems(isAdmin: boolean = true) {
   const rejectReview = async (id: string) => {
     try {
       await adminService.rejectReview(id);
-      setPendingReviews((r) => r.filter((x) => x._id !== id));
-      refreshStats();
+      fetchReviews(pagination.reviews.page, true);
+      fetchStats();
       return true;
     } catch { return false; }
   };
@@ -302,7 +363,8 @@ export function usePendingItems(isAdmin: boolean = true) {
   }) => {
     try {
       await adminService.addStore(data);
-      await load(true);
+      fetchStores(pagination.stores.page, true);
+      fetchStats();
       return true;
     } catch { return false; }
   };
@@ -310,8 +372,8 @@ export function usePendingItems(isAdmin: boolean = true) {
   const deleteStoreHook = async (id: string) => {
     try {
       await adminService.deleteStore(id);
-      setStores((s) => s.filter((x) => x._id !== id));
-      refreshStats();
+      fetchStores(pagination.stores.page, true);
+      fetchStats();
       return true;
     } catch { return false; }
   };
@@ -319,8 +381,8 @@ export function usePendingItems(isAdmin: boolean = true) {
   const resolveReport = async (id: string) => {
     try {
       await adminService.resolveReport(id);
-      setReports((r) => r.map(x => x._id === id ? { ...x, status: 'resolved' as const } : x));
-      refreshStats();
+      fetchReports(pagination.reports.page, true);
+      fetchStats();
       return true;
     } catch { return false; }
   };
@@ -328,26 +390,26 @@ export function usePendingItems(isAdmin: boolean = true) {
   const ignoreReport = async (id: string) => {
     try {
       await adminService.ignoreReport(id);
-      setReports((r) => r.filter((x) => x._id !== id));
-      refreshStats();
+      fetchReports(pagination.reports.page, true);
+      fetchStats();
       return true;
     } catch { return false; }
   };
 
   useEffect(() => {
-    const onFocus = () => load(true);
+    const onFocus = () => loadAll(true);
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onFocus);
 
     // Admin data needs aggressive polling
-    const timer = setInterval(() => load(true), 10000);
+    const timer = setInterval(() => loadAll(true), 15000);
 
     return () => {
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onFocus);
       clearInterval(timer);
     };
-  }, [load]);
+  }, [loadAll]);
 
   return {
     products,
@@ -356,6 +418,11 @@ export function usePendingItems(isAdmin: boolean = true) {
     stores,
     stats,
     loading,
+    pagination,
+    fetchProducts,
+    fetchStores,
+    fetchReviews,
+    fetchReports,
     approveProduct,
     rejectProduct,
     deleteProduct,
@@ -365,6 +432,6 @@ export function usePendingItems(isAdmin: boolean = true) {
     ignoreReport,
     addStore,
     deleteStore: deleteStoreHook,
-    refetch: load
+    refetch: loadAll
   };
 }

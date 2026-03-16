@@ -117,8 +117,8 @@ export const adminService = {
     return api.get<ApiResponse<Product[]>>('/admin/products/pending');
   },
 
-  getAllProducts: () => {
-    return api.get<ApiResponse<Product[]>>('/admin/products');
+  getAllProducts: (page = 1, limit = 10) => {
+    return api.get<ApiResponse<Product[]>>(`/admin/products?page=${page}&limit=${limit}`);
   },
 
   approveProduct: (id: string) => {
@@ -133,8 +133,8 @@ export const adminService = {
     return api.delete<ApiResponse<{}>>(`/admin/products/${id}`);
   },
 
-  getPendingReviews: () => {
-    return api.get<ApiResponse<Review[]>>('/admin/reviews/pending');
+  getPendingReviews: (page = 1, limit = 10) => {
+    return api.get<ApiResponse<Review[]>>(`/admin/reviews/pending?page=${page}&limit=${limit}`);
   },
 
   approveReview: (id: string) => {
@@ -168,8 +168,8 @@ export const adminService = {
     return api.get<ApiResponse<ProductReport[]>>('/admin/reports/pending');
   },
 
-  getAllReports: () => {
-    return api.get<ApiResponse<ProductReport[]>>('/admin/reports');
+  getAllReports: (page = 1, limit = 10) => {
+    return api.get<ApiResponse<ProductReport[]>>(`/admin/reports?page=${page}&limit=${limit}`);
   },
 
   resolveReport: (id: string) => {
@@ -206,8 +206,8 @@ export const adminService = {
     return api.post<ApiResponse<Store>>('/admin/stores', formData);
   },
 
-  getAllStores: () => {
-    return api.get<ApiResponse<Store[]>>('/stores');
+  getAllStores: (page = 1, limit = 10) => {
+    return api.get<ApiResponse<Store[]>>(`/admin/stores?page=${page}&limit=${limit}`);
   },
 
   deleteStore: (id: string) => {

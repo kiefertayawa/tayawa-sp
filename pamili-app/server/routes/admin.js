@@ -80,11 +80,44 @@ router.get('/products/pending', auth, async (req, res) => {
   }
 });
 
-// GET /api/admin/products — get ALL products (approved, pending, rejected)
+// GET /api/admin/products — get ALL products with pagination
 router.get('/products', auth, async (req, res) => {
   try {
-    const products = await Product.find().sort({ updatedAt: -1, createdAt: -1 });
-    res.json({ success: true, data: products });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const total = await Product.countDocuments();
+    const products = await Product.aggregate([
+      {
+        $addFields: {
+          statusPriority: {
+            $switch: {
+              branches: [
+                { case: { $eq: ['$status', 'pending'] }, then: 0 },
+                { case: { $eq: ['$status', 'approved'] }, then: 1 },
+                { case: { $eq: ['$status', 'rejected'] }, then: 2 }
+              ],
+              default: 3
+            }
+          }
+        }
+      },
+      { $sort: { statusPriority: 1, updatedAt: -1 } },
+      { $skip: skip },
+      { $limit: limit }
+    ]);
+
+    res.json({
+      success: true,
+      data: products,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -314,11 +347,45 @@ router.delete('/products/:id', auth, async (req, res) => {
 
 // ─── Pending Reviews ──────────────────────────────────
 
-// GET /api/admin/reviews/pending
+// GET /api/admin/reviews/pending — with pagination
 router.get('/reviews/pending', auth, async (req, res) => {
   try {
-    const reviews = await Review.find({ status: 'pending' }).sort({ createdAt: -1 });
-    res.json({ success: true, data: reviews });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const total = await Review.countDocuments({ status: { $ne: 'rejected' } });
+    const reviews = await Review.aggregate([
+      { $match: { status: { $ne: 'rejected' } } },
+      {
+        $addFields: {
+          statusPriority: {
+            $switch: {
+              branches: [
+                { case: { $eq: ['$status', 'pending'] }, then: 0 },
+                { case: { $eq: ['$status', 'approved'] }, then: 1 },
+                { case: { $eq: ['$status', 'rejected'] }, then: 2 }
+              ],
+              default: 3
+            }
+          }
+        }
+      },
+      { $sort: { statusPriority: 1, createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit }
+    ]);
+
+    res.json({
+      success: true,
+      data: reviews,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -384,11 +451,43 @@ router.get('/reports/pending', auth, async (req, res) => {
   }
 });
 
-// GET /api/admin/reports — all reports (pending + resolved)
+// GET /api/admin/reports — all reports with pagination
 router.get('/reports', auth, async (req, res) => {
   try {
-    const reports = await Report.find().sort({ createdAt: -1 });
-    res.json({ success: true, data: reports });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const total = await Report.countDocuments();
+    const reports = await Report.aggregate([
+      {
+        $addFields: {
+          statusPriority: {
+            $switch: {
+              branches: [
+                { case: { $eq: ['$status', 'pending'] }, then: 0 },
+                { case: { $eq: ['$status', 'resolved'] }, then: 1 }
+              ],
+              default: 2
+            }
+          }
+        }
+      },
+      { $sort: { statusPriority: 1, createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit }
+    ]);
+
+    res.json({
+      success: true,
+      data: reports,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -420,6 +519,34 @@ router.delete('/reports/:id/ignore', auth, async (req, res) => {
 });
 
 // ─── Store Management ────────────────────────────────
+
+// GET /api/admin/stores — with pagination
+router.get('/stores', auth, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const total = await Store.countDocuments();
+    const stores = await Store.find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.json({
+      success: true,
+      data: stores,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 // POST /api/admin/stores
 router.post('/stores', auth, upload.single('image'), async (req, res) => {
   try {

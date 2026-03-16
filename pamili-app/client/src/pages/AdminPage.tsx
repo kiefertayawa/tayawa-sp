@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Star, Package, Eye, EyeOff, CheckCircle, X, User, Plus, MapPin, Users, ArrowUp } from 'lucide-react';
+import { Star, Package, Eye, EyeOff, CheckCircle, X, User, Plus, MapPin, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap, CircleMarker } from 'react-leaflet';
 import L from 'leaflet';
@@ -37,6 +37,64 @@ const formatFullDateTime = (dateStr?: string) => {
     hour12: true
   });
 };
+
+function Pagination({ page, totalPages, onPageChange }: { page: number; totalPages: number; onPageChange: (p: number) => void }) {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      gap: '8px', padding: '20px', borderTop: '1px solid #f3f4f6', backgroundColor: '#fff'
+    }}>
+      <button
+        disabled={page <= 1}
+        onClick={() => onPageChange(page - 1)}
+        style={{
+          padding: '8px 12px', borderRadius: '8px', border: '1px solid #e5e7eb',
+          backgroundColor: page <= 1 ? '#f9fafb' : '#fff',
+          color: page <= 1 ? '#9ca3af' : '#374151',
+          cursor: page <= 1 ? 'not-allowed' : 'pointer',
+          fontSize: '0.875rem', fontWeight: 600
+        }}
+      >
+        Previous
+      </button>
+
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+        <button
+          key={p}
+          onClick={() => onPageChange(p)}
+          style={{
+            width: '36px', height: '36px', borderRadius: '8px',
+            border: '1px solid',
+            borderColor: page === p ? '#8B1538' : '#e5e7eb',
+            backgroundColor: page === p ? '#8B1538' : '#fff',
+            color: page === p ? '#fff' : '#374151',
+            cursor: 'pointer',
+            fontSize: '0.875rem', fontWeight: 700,
+            transition: 'all 0.2s'
+          }}
+        >
+          {p}
+        </button>
+      ))}
+
+      <button
+        disabled={page >= totalPages}
+        onClick={() => onPageChange(page + 1)}
+        style={{
+          padding: '8px 12px', borderRadius: '8px', border: '1px solid #e5e7eb',
+          backgroundColor: page >= totalPages ? '#f9fafb' : '#fff',
+          color: page >= totalPages ? '#9ca3af' : '#374151',
+          cursor: page >= totalPages ? 'not-allowed' : 'pointer',
+          fontSize: '0.875rem', fontWeight: 600
+        }}
+      >
+        Next
+      </button>
+    </div>
+  );
+}
 
 // ─── help determine status dynamically ──────────────────────
 function parseMin(s: string) {
@@ -102,7 +160,6 @@ export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [showScroll, setShowScroll] = useState(false);
 
 
   // Confirmation Modal State
@@ -124,6 +181,7 @@ export default function AdminPage() {
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
   const {
     products, pendingReviews, reports, stores, stats, loading,
+    pagination, fetchProducts, fetchStores, fetchReviews, fetchReports,
     approveProduct, rejectProduct, deleteProduct, approveReview, rejectReview,
     resolveReport, ignoreReport,
     addStore, deleteStore
@@ -150,19 +208,6 @@ export default function AdminPage() {
       document.body.style.overflow = 'unset';
     };
   }, [showAddStore, confirmModal.show, viewReviewModal.show, viewProductModal.show]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 400) setShowScroll(true);
-      else setShowScroll(false);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
 
   // Clear fields on logout
   useEffect(() => {
@@ -372,346 +417,364 @@ export default function AdminPage() {
 
   // ── Admin dashboard ───────────────────────────────────────
   return (
-    <div style={{ backgroundColor: '#f5f6fa', minHeight: '100vh' }}>
-      <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '32px 28px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#8B1538', margin: 0 }}>Admin Dashboard</h1>
-          <button
-            onClick={() => setShowAddStore(true)}
-            style={{
-              padding: '10px 20px', fontSize: '0.875rem', fontWeight: 700,
-              color: '#fff', backgroundColor: '#8B1538',
-              border: 'none', borderRadius: '10px', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: '8px',
-              transition: 'opacity 0.2s'
-            }}
-          >
-            <Plus style={{ width: 18, height: 18 }} />
-            Add Store
-          </button>
-        </div>
-
-        {/* ── Stat cards ─────────────────────────────── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
-          {/* Upper: Pendings */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-            {[
-              { label: 'Pending Products', value: stats.pendingProducts, color: '#8B1538' },
-              { label: 'Pending Reviews', value: stats.pendingReviews, color: '#8B1538' },
-              { label: 'Pending Reports', value: stats.pendingReports, color: '#8B1538' },
-            ].map(stat => (
-              <div
-                key={stat.label}
-                style={{
-                  backgroundColor: '#fff',
-                  borderRadius: '14px',
-                  border: '1px solid #e5e7eb',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-                  padding: '20px 22px',
-                }}
-              >
-                <p style={{ fontSize: '0.83rem', color: '#6b7280', margin: '0 0 10px' }}>{stat.label}</p>
-                <p style={{ fontSize: '2.4rem', fontWeight: 700, color: stat.color, margin: 0, lineHeight: 1 }}>{stat.value}</p>
-              </div>
-            ))}
+    <>
+      <div style={{ backgroundColor: '#f5f6fa', minHeight: '100vh' }}>
+        <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '32px 28px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#8B1538', margin: 0 }}>Admin Dashboard</h1>
+            <button
+              onClick={() => setShowAddStore(true)}
+              style={{
+                padding: '10px 20px', fontSize: '0.875rem', fontWeight: 700,
+                color: '#fff', backgroundColor: '#8B1538',
+                border: 'none', borderRadius: '10px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '8px',
+                transition: 'opacity 0.2s'
+              }}
+            >
+              <Plus style={{ width: 18, height: 18 }} />
+              Add Store
+            </button>
           </div>
 
-          {/* Lower: Totals */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-            {[
-              { label: 'Total Stores', value: stats.totalStores || 0, color: '#16a34a' },
-              { label: 'Accepted Entries', value: stats.approvedProducts + stats.approvedReviews, color: '#16a34a' },
-              { label: 'Rejected Entries', value: stats.rejectedProducts + stats.rejectedReviews, color: '#dc2626' },
-            ].map(stat => (
-              <div
-                key={stat.label}
-                style={{
-                  backgroundColor: '#fff',
-                  borderRadius: '14px',
-                  border: '1px solid #e5e7eb',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-                  padding: '20px 22px',
-                }}
-              >
-                <p style={{ fontSize: '0.83rem', color: '#6b7280', margin: '0 0 10px' }}>{stat.label}</p>
-                <p style={{ fontSize: '2.4rem', fontWeight: 700, color: stat.color, margin: 0, lineHeight: 1 }}>{stat.value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Main panel ─────────────────────────────── */}
-        <div
-          style={{
-            backgroundColor: '#fff',
-            borderRadius: '14px',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-            overflow: 'hidden',
-          }}
-        >
-          {/* Tab bar */}
-          <div style={{ display: 'flex', padding: '6px', backgroundColor: '#f3f4f6', gap: '4px' }}>
-            {(['products', 'stores', 'reports', 'reviews'] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                style={{
-                  flex: 1, padding: '11px 16px',
-                  fontSize: '0.875rem', fontWeight: 600,
-                  border: 'none', borderRadius: '10px', cursor: 'pointer',
-                  transition: 'all 0.15s',
-                  ...(tab === t
-                    ? { backgroundColor: '#fff', color: '#111827', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
-                    : { backgroundColor: 'transparent', color: '#9ca3af' }),
-                }}
-              >
-                {t === 'products'
-                  ? `Products (${products.filter(p => p.status !== 'rejected').length})`
-                  : t === 'stores'
-                    ? `Stores (${stores.length})`
-                    : t === 'reports'
-                      ? `Reports (${reports.length})`
-                      : `Reviews (${pendingReviews.length})`}
-              </button>
-            ))}
-          </div>
-
-          {/* Content */}
-          {loading ? (
-            <div style={{ padding: '32px' }}>
-              {[0, 1, 2, 3].map(i => (
-                <div key={i} style={{ height: 64, backgroundColor: '#f3f4f6', borderRadius: 8, marginBottom: 12 }} />
+          {/* ── Stat cards ─────────────────────────────── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+            {/* Upper: Pendings */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+              {[
+                { label: 'Pending Products', value: stats.pendingProducts, color: '#8B1538' },
+                { label: 'Pending Reviews', value: stats.pendingReviews, color: '#8B1538' },
+                { label: 'Pending Reports', value: stats.pendingReports, color: '#8B1538' },
+              ].map(stat => (
+                <div
+                  key={stat.label}
+                  style={{
+                    backgroundColor: '#fff',
+                    borderRadius: '14px',
+                    border: '1px solid #e5e7eb',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                    padding: '20px 22px',
+                  }}
+                >
+                  <p style={{ fontSize: '0.83rem', color: '#6b7280', margin: '0 0 10px' }}>{stat.label}</p>
+                  <p style={{ fontSize: '2.4rem', fontWeight: 700, color: stat.color, margin: 0, lineHeight: 1 }}>{stat.value}</p>
+                </div>
               ))}
             </div>
-          ) : tab === 'products' ? (
-            sortedProducts.length === 0 ? (
-              <div style={{ padding: '64px', textAlign: 'center', color: '#9ca3af' }}>
-                <CheckCircle style={{ width: 40, height: 40, color: '#e5e7eb', margin: '0 auto 8px' }} />
-                <p style={{ fontSize: '0.875rem' }}>No products found</p>
+
+            {/* Lower: Totals */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+              {[
+                { label: 'Total Stores', value: stats.totalStores || 0, color: '#16a34a' },
+                { label: 'Accepted Entries', value: stats.approvedProducts + stats.approvedReviews, color: '#16a34a' },
+                { label: 'Rejected Entries', value: stats.rejectedProducts + stats.rejectedReviews, color: '#dc2626' },
+              ].map(stat => (
+                <div
+                  key={stat.label}
+                  style={{
+                    backgroundColor: '#fff',
+                    borderRadius: '14px',
+                    border: '1px solid #e5e7eb',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                    padding: '20px 22px',
+                  }}
+                >
+                  <p style={{ fontSize: '0.83rem', color: '#6b7280', margin: '0 0 10px' }}>{stat.label}</p>
+                  <p style={{ fontSize: '2.4rem', fontWeight: 700, color: stat.color, margin: 0, lineHeight: 1 }}>{stat.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Main panel ─────────────────────────────── */}
+          <div
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: '14px',
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Tab bar */}
+            <div style={{ display: 'flex', padding: '6px', backgroundColor: '#f3f4f6', gap: '4px' }}>
+              {(['products', 'stores', 'reports', 'reviews'] as const).map(t => (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  style={{
+                    flex: 1, padding: '11px 16px',
+                    fontSize: '0.875rem', fontWeight: 600,
+                    border: 'none', borderRadius: '10px', cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    ...(tab === t
+                      ? { backgroundColor: '#fff', color: '#111827', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
+                      : { backgroundColor: 'transparent', color: '#9ca3af' }),
+                  }}
+                >
+                  {t === 'products'
+                    ? `Products (${pagination.products.total})`
+                    : t === 'stores'
+                      ? `Stores (${pagination.stores.total})`
+                      : t === 'reports'
+                        ? `Reports (${pagination.reports.total})`
+                        : `Reviews (${pagination.reviews.total})`}
+                </button>
+              ))}
+            </div>
+
+            {/* Content */}
+            {loading ? (
+              <div style={{ padding: '32px' }}>
+                {[0, 1, 2, 3].map(i => (
+                  <div key={i} style={{ height: 64, backgroundColor: '#f3f4f6', borderRadius: 8, marginBottom: 12 }} />
+                ))}
               </div>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    {['Image', 'Product Name', 'Store', 'Price', 'Submitted By', 'Date Created', 'Actions'].map(h => (
-                      <th
-                        key={h}
-                        style={{
-                          textAlign: 'left', padding: '12px 18px',
-                          fontSize: '0.8rem', fontWeight: 700,
-                          color: '#374151', letterSpacing: '0.02em',
-                          width: h === 'Actions' ? '180px' : undefined,
-                        }}
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedProducts.map((p, idx) => (
-                    <tr
-                      key={p._id}
-                      onMouseEnter={() => setHoveredRow(p._id)}
-                      onMouseLeave={() => setHoveredRow(null)}
-                      onClick={() => handleOpenProductDetail(p)}
-                      style={{
-                        borderBottom: idx < sortedProducts.length - 1 ? '1px solid #f9fafb' : 'none',
-                        backgroundColor: hoveredRow === p._id ? '#f9fafb' : 'transparent',
-                        cursor: 'pointer',
-                        transition: 'background-color 0.2s',
-                      }}
-                    >
-                      <td style={{ padding: '14px 18px' }}>
-                        {p.image ? (
-                          <img
-                            src={p.image}
-                            alt={p.name}
-                            style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: '8px' }}
-                            onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available')}
-                          />
-                        ) : (
-                          <div style={{ width: 48, height: 48, backgroundColor: '#f3f4f6', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Package style={{ width: 20, height: 20, color: '#d1d5db' }} />
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 500, color: '#111827', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {p.name}
-                      </td>
-                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#111827', fontWeight: 500 }}>
-                        {p.prices?.[0]?.storeName || 'Unknown'}
-                      </td>
-                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 600, color: '#8B1538' }}>
-                        ₱{(p.prices?.[0]?.price || 0).toFixed(2)}
-                      </td>
-                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280' }}>
-                        Anonymous User
-                      </td>
-                      <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280' }}>
-                        {formatShortDate(p.submittedDate)}
-                      </td>
-                      <td style={{ padding: '14px 18px', minWidth: '180px' }} onClick={e => e.stopPropagation()}>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          {p.status === 'pending' ? (
-                            <>
-                              <button
-                                onClick={() => handleApproveProduct(p._id)}
-                                style={{
-                                  padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
-                                  color: '#fff', backgroundColor: '#16a34a',
-                                  border: 'none', borderRadius: '6px', cursor: 'pointer',
-                                }}
-                              >
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => handleRejectProduct(p._id, p.name)}
-                                style={{
-                                  padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
-                                  color: '#dc2626', backgroundColor: '#fff',
-                                  border: '1.5px solid #dc2626', borderRadius: '6px', cursor: 'pointer',
-                                }}
-                              >
-                                Reject
-                              </button>
-                            </>
-                          ) : p.status === 'approved' ? (
-                            <button
-                              onClick={() => handleDeleteProduct(p._id, p.name)}
-                              style={{
-                                padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
-                                color: '#dc2626', backgroundColor: '#fff',
-                                border: '1.5px solid #dc2626', borderRadius: '6px', cursor: 'pointer'
-                              }}
-                            >
-                              Delete
-                            </button>
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#9ca3af', textTransform: 'capitalize' }}>
-                              {p.status}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )) : tab === 'stores' ? (
+            ) : tab === 'products' ? (
+              sortedProducts.length === 0 ? (
+                <div style={{ padding: '64px', textAlign: 'center', color: '#9ca3af' }}>
+                  <CheckCircle style={{ width: 40, height: 40, color: '#e5e7eb', margin: '0 auto 8px' }} />
+                  <p style={{ fontSize: '0.875rem' }}>No products found</p>
+                </div>
+              ) : (
+                <>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                        {['Image', 'Product Name', 'Store', 'Price', 'Submitted By', 'Date Created', 'Actions'].map(h => (
+                          <th
+                            key={h}
+                            style={{
+                              textAlign: 'left', padding: '12px 18px',
+                              fontSize: '0.8rem', fontWeight: 700,
+                              color: '#374151', letterSpacing: '0.02em',
+                              width: h === 'Actions' ? '180px' : undefined,
+                            }}
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedProducts.map((p, idx) => (
+                        <tr
+                          key={p._id}
+                          onMouseEnter={() => setHoveredRow(p._id)}
+                          onMouseLeave={() => setHoveredRow(null)}
+                          onClick={() => handleOpenProductDetail(p)}
+                          style={{
+                            borderBottom: idx < sortedProducts.length - 1 ? '1px solid #f9fafb' : 'none',
+                            backgroundColor: hoveredRow === p._id ? '#f9fafb' : 'transparent',
+                            cursor: 'pointer',
+                            transition: 'background-color 0.2s',
+                          }}
+                        >
+                          <td style={{ padding: '14px 18px' }}>
+                            {p.image ? (
+                              <img
+                                src={p.image}
+                                alt={p.name}
+                                style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: '8px' }}
+                                onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available')}
+                              />
+                            ) : (
+                              <div style={{ width: 48, height: 48, backgroundColor: '#f3f4f6', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Package style={{ width: 20, height: 20, color: '#d1d5db' }} />
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 500, color: '#111827', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {p.name}
+                          </td>
+                          <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#111827', fontWeight: 500 }}>
+                            {p.prices?.[0]?.storeName || 'Unknown'}
+                          </td>
+                          <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 600, color: '#8B1538' }}>
+                            ₱{(p.prices?.[0]?.price || 0).toFixed(2)}
+                          </td>
+                          <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280' }}>
+                            Anonymous User
+                          </td>
+                          <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280' }}>
+                            {formatShortDate(p.submittedDate)}
+                          </td>
+                          <td style={{ padding: '14px 18px', minWidth: '180px' }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              {p.status === 'pending' ? (
+                                <>
+                                  <button
+                                    onClick={() => handleApproveProduct(p._id)}
+                                    style={{
+                                      padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
+                                      color: '#fff', backgroundColor: '#16a34a',
+                                      border: 'none', borderRadius: '6px', cursor: 'pointer',
+                                    }}
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() => handleRejectProduct(p._id, p.name)}
+                                    style={{
+                                      padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
+                                      color: '#dc2626', backgroundColor: '#fff',
+                                      border: '1.5px solid #dc2626', borderRadius: '6px', cursor: 'pointer',
+                                    }}
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              ) : p.status === 'approved' ? (
+                                <button
+                                  onClick={() => handleDeleteProduct(p._id, p.name)}
+                                  style={{
+                                    padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
+                                    color: '#dc2626', backgroundColor: '#fff',
+                                    border: '1.5px solid #dc2626', borderRadius: '6px', cursor: 'pointer'
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              ) : (
+                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#9ca3af', textTransform: 'capitalize' }}>
+                                  {p.status}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <Pagination
+                    page={pagination.products.page}
+                    totalPages={pagination.products.totalPages}
+                    onPageChange={(p) => fetchProducts(p)}
+                  />
+                </>
+              )
+            ) : tab === 'stores' ? (
               stores.length === 0 ? (
                 <div style={{ padding: '64px', textAlign: 'center', color: '#9ca3af' }}>
                   <CheckCircle style={{ width: 40, height: 40, color: '#e5e7eb', margin: '0 auto 8px' }} />
                   <p style={{ fontSize: '0.875rem' }}>No stores available</p>
                 </div>
               ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                      {['Image', 'Store Name', 'Crowd Level', 'Rating', 'Date Created', 'Actions'].map(h => (
-                        <th
-                          key={h}
-                          style={{
-                            textAlign: 'left', padding: '12px 18px',
-                            fontSize: '0.8rem', fontWeight: 700,
-                            color: '#374151', letterSpacing: '0.02em',
-                          }}
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stores.map((s, idx) => (
-                      <tr
-                        key={s._id}
-                        onMouseEnter={() => setHoveredRow(s._id)}
-                        onMouseLeave={() => setHoveredRow(null)}
-                        style={{
-                          borderBottom: idx < stores.length - 1 ? '1px solid #f9fafb' : 'none',
-                          backgroundColor: hoveredRow === s._id ? '#f9fafb' : 'transparent',
-                          transition: 'background-color 0.2s',
-                          cursor: 'default',
-                        }}
-                      >
-                        <td style={{ padding: '14px 18px' }}>
-                          {s.image ? (
-                            <img
-                              src={s.image}
-                              alt={s.name}
-                              style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: '8px' }}
-                              onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available')}
-                            />
-                          ) : (
-                            <div style={{ width: 48, height: 48, backgroundColor: '#f3f4f6', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <Package style={{ width: 20, height: 20, color: '#d1d5db' }} />
-                            </div>
-                          )}
-                        </td>
-                        <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>
-                          {s.name}
-                        </td>
-                        <td style={{ padding: '14px 18px' }}>
-                          {(() => {
-                            const status = getLiveCrowdStatus(s);
-                            const config = crowdConfig[status];
-                            return (
-                              <span style={{
-                                display: 'inline-flex', alignItems: 'center', gap: '4px',
-                                fontSize: '0.72rem', fontWeight: 700,
-                                color: config.color,
-                                backgroundColor: config.bg,
-                                borderRadius: '999px', padding: '3px 10px',
-                              }}>
-                                {config.label}
-                              </span>
-                            );
-                          })()}
-                        </td>
-                        <td style={{ padding: '14px 18px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <Star style={{ width: 14, height: 14, fill: '#facc15', color: '#facc15' }} />
-                            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>{s.rating.toFixed(1)}</span>
-                            <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>({s.reviewCount})</span>
-                          </div>
-                        </td>
-                        <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280' }}>
-                          {formatShortDate(s.createdAt)}
-                        </td>
-                        <td style={{ padding: '14px 18px' }}>
-                          <button
-                            onClick={() => handleDeleteStore(s._id, s.name)}
+                <>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                        {['Image', 'Store Name', 'Crowd Level', 'Rating', 'Date Created', 'Actions'].map(h => (
+                          <th
+                            key={h}
                             style={{
-                              padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
-                              color: '#dc2626', backgroundColor: '#fff',
-                              border: '1.5px solid #dc2626', borderRadius: '6px', cursor: 'pointer',
+                              textAlign: 'left', padding: '12px 18px',
+                              fontSize: '0.8rem', fontWeight: 700,
+                              color: '#374151', letterSpacing: '0.02em',
                             }}
                           >
-                            Delete
-                          </button>
-                        </td>
+                            {h}
+                          </th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )) : tab === 'reviews' ? (
-                pendingReviews.length === 0 ? (
-                  <div style={{ padding: '64px', textAlign: 'center', color: '#9ca3af' }}>
-                    <CheckCircle style={{ width: 40, height: 40, color: '#e5e7eb', margin: '0 auto 8px' }} />
-                    <p style={{ fontSize: '0.875rem' }}>No pending reviews</p>
-                  </div>
-                ) : (
+                    </thead>
+                    <tbody>
+                      {stores.map((s, idx) => (
+                        <tr
+                          key={s._id}
+                          onMouseEnter={() => setHoveredRow(s._id)}
+                          onMouseLeave={() => setHoveredRow(null)}
+                          style={{
+                            borderBottom: idx < stores.length - 1 ? '1px solid #f9fafb' : 'none',
+                            backgroundColor: hoveredRow === s._id ? '#f9fafb' : 'transparent',
+                            transition: 'background-color 0.2s',
+                            cursor: 'default',
+                          }}
+                        >
+                          <td style={{ padding: '14px 18px' }}>
+                            {s.image ? (
+                              <img
+                                src={s.image}
+                                alt={s.name}
+                                style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: '8px' }}
+                                onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available')}
+                              />
+                            ) : (
+                              <div style={{ width: 48, height: 48, backgroundColor: '#f3f4f6', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Package style={{ width: 20, height: 20, color: '#d1d5db' }} />
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>
+                            {s.name}
+                          </td>
+                          <td style={{ padding: '14px 18px' }}>
+                            {(() => {
+                              const status = getLiveCrowdStatus(s);
+                              const config = crowdConfig[status];
+                              return (
+                                <span style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                  fontSize: '0.72rem', fontWeight: 700,
+                                  color: config.color,
+                                  backgroundColor: config.bg,
+                                  borderRadius: '999px', padding: '3px 10px',
+                                }}>
+                                  {config.label}
+                                </span>
+                              );
+                            })()}
+                          </td>
+                          <td style={{ padding: '14px 18px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Star style={{ width: 14, height: 14, fill: '#facc15', color: '#facc15' }} />
+                              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>{s.rating.toFixed(1)}</span>
+                              <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>({s.reviewCount})</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: '14px 18px', fontSize: '0.875rem', color: '#6b7280' }}>
+                            {formatShortDate(s.createdAt)}
+                          </td>
+                          <td style={{ padding: '14px 18px' }}>
+                            <button
+                              onClick={() => handleDeleteStore(s._id, s.name)}
+                              style={{
+                                padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
+                                color: '#dc2626', backgroundColor: '#fff',
+                                border: '1.5px solid #dc2626', borderRadius: '6px', cursor: 'pointer',
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <Pagination
+                    page={pagination.stores.page}
+                    totalPages={pagination.stores.totalPages}
+                    onPageChange={(p) => fetchStores(p)}
+                  />
+                </>
+              )
+            ) : tab === 'reviews' ? (
+              pendingReviews.length === 0 ? (
+                <div style={{ padding: '64px', textAlign: 'center', color: '#9ca3af' }}>
+                  <CheckCircle style={{ width: 40, height: 40, color: '#e5e7eb', margin: '0 auto 8px' }} />
+                  <p style={{ fontSize: '0.875rem' }}>No reviews found</p>
+                </div>
+              ) : (
+                <>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
                         {[
-                          { l: 'Store', w: '22%' },
-                          { l: 'Rating', w: '12%' },
-                          { l: 'Review', w: '40%' },
-                          { l: 'Date Submitted', w: '13%' },
-                          { l: 'Actions', w: '13%' }
+                          { l: 'Store', w: '20%' },
+                          { l: 'Rating', w: '10%' },
+                          { l: 'Review', w: '20%' },
+                          { l: 'Date Submitted', w: '10%' },
+                          { l: 'Actions', w: '10%' }
                         ].map(h => (
                           <th
                             key={h.l}
@@ -783,517 +846,457 @@ export default function AdminPage() {
                               )}
                             </div>
                           </td>
-                          <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#6b7280', width: '13%' }}>{formatShortDate(r.date)}</td>
+                          <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#6b7280', width: '15%' }}>{formatShortDate(r.date)}</td>
                           <td style={{ padding: '16px 20px', width: '13%' }} onClick={e => e.stopPropagation()}>
                             <div style={{ display: 'flex', gap: '8px' }}>
-                              <button
-                                onClick={() => handleApproveReview(r._id)}
-                                style={{
-                                  padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
-                                  color: '#fff', backgroundColor: '#16a34a',
-                                  border: 'none', borderRadius: '6px', cursor: 'pointer',
-                                }}
-                              >
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => handleRejectReview(r._id, r.userName)}
-                                style={{
-                                  padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
-                                  color: '#dc2626', backgroundColor: '#fff',
-                                  border: '1.5px solid #dc2626', borderRadius: '6px', cursor: 'pointer',
-                                }}
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )) : tab === 'reports' ? (
-                  reports.length === 0 ? (
-                    <div style={{ padding: '64px', textAlign: 'center', color: '#9ca3af' }}>
-                      <CheckCircle style={{ width: 40, height: 40, color: '#e5e7eb', margin: '0 auto 8px' }} />
-                      <p style={{ fontSize: '0.875rem' }}>No reports found</p>
-                    </div>
-                  ) : (
-                    <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                          {([
-                            { label: 'Product', width: '190px' },
-                            { label: 'Store', width: '200px' },
-                            { label: 'Reason', width: '350px' },
-                            { label: 'Date Reported', width: '130px' },
-                            { label: 'Status', width: '120px' },
-                            { label: 'Actions', width: '210px' },
-                          ] as { label: string; width?: string }[]).map(({ label, width }) => (
-                            <th
-                              key={label}
-                              style={{
-                                textAlign: 'left', padding: '16px 20px',
-                                fontSize: '0.8rem', fontWeight: 700,
-                                color: '#374151', width, overflow: 'hidden',
-                              }}
-                            >
-                              {label}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {reports.map((r: ProductReport, idx: number) => (
-                          <tr
-                            key={r._id}
-                            onMouseEnter={() => setHoveredRow(r._id)}
-                            onMouseLeave={() => setHoveredRow(null)}
-                            style={{
-                              borderBottom: idx < reports.length - 1 ? '1px solid #f9fafb' : 'none',
-                              backgroundColor: hoveredRow === r._id ? '#f9fafb' : 'transparent',
-                              transition: 'background-color 0.2s',
-                              cursor: 'default'
-                            }}
-                          >
-                            <td style={{ padding: '16px 20px', fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>{r.productName}</td>
-                            <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#374151' }}>{r.storeName}</td>
-                            <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#6b7280', maxWidth: '260px', wordBreak: 'break-word' }}>{r.reason}</td>
-                            <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{formatShortDate(r.submittedDate)}</td>
-                            <td style={{ padding: '16px 20px' }}>
-                              {r.status === 'resolved' ? (
-                                <span style={{
-                                  fontSize: '0.75rem', fontWeight: 700,
-                                  color: '#16a34a', backgroundColor: '#dcfce7',
-                                  borderRadius: '999px', padding: '3px 10px',
-                                }}>Resolved</span>
-                              ) : (
-                                <span style={{
-                                  fontSize: '0.75rem', fontWeight: 700,
-                                  color: '#d97706', backgroundColor: '#fef3c7',
-                                  borderRadius: '999px', padding: '3px 10px',
-                                }}>Pending</span>
-                              )}
-                            </td>
-                            <td style={{ padding: '16px 20px' }}>
-                              {r.status !== 'resolved' ? (
-                                <div style={{ display: 'flex', gap: '8px' }}>
+                              {r.status === 'pending' ? (
+                                <>
                                   <button
-                                    onClick={() => handleResolveReport(r._id)}
+                                    onClick={() => handleApproveReview(r._id)}
                                     style={{
                                       padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
                                       color: '#fff', backgroundColor: '#16a34a',
                                       border: 'none', borderRadius: '6px', cursor: 'pointer',
                                     }}
                                   >
-                                    Resolve
+                                    Approve
                                   </button>
                                   <button
-                                    onClick={() => handleIgnoreReport(r._id, `Report for ${r.productName}`)}
+                                    onClick={() => handleRejectReview(r._id, r.userName)}
                                     style={{
                                       padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
-                                      color: '#6b7280', backgroundColor: '#fff',
-                                      border: '1.5px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer',
+                                      color: '#dc2626', backgroundColor: '#fff',
+                                      border: '1.5px solid #dc2626', borderRadius: '6px', cursor: 'pointer',
                                     }}
                                   >
-                                    Ignore
+                                    Reject
                                   </button>
-                                </div>
+                                </>
                               ) : (
-                                <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>—</span>
+                                <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#16a34a', fontStyle: 'italic' }}>
+                                  Approved
+                                </span>
                               )}
-                            </td>
-                          </tr>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <Pagination
+                    page={pagination.reviews.page}
+                    totalPages={pagination.reviews.totalPages}
+                    onPageChange={(p) => fetchReviews(p)}
+                  />
+                </>
+              )
+            ) : tab === 'reports' ? (
+              reports.length === 0 ? (
+                <div style={{ padding: '64px', textAlign: 'center', color: '#9ca3af' }}>
+                  <CheckCircle style={{ width: 40, height: 40, color: '#e5e7eb', margin: '0 auto 8px' }} />
+                  <p style={{ fontSize: '0.875rem' }}>No reports found</p>
+                </div>
+              ) : (
+                <>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                        {([
+                          { label: 'Product', width: '260px' },
+                          { label: 'Store', width: '200px' },
+                          { label: 'Reason', width: '400px' },
+                          { label: 'Date Reported', width: '180px' },
+                          { label: 'Actions', width: '210px' },
+                        ] as { label: string; width?: string }[]).map(({ label, width }) => (
+                          <th
+                            key={label}
+                            style={{
+                              textAlign: 'left', padding: '16px 20px',
+                              fontSize: '0.8rem', fontWeight: 700,
+                              color: '#374151', width, overflow: 'hidden',
+                            }}
+                          >
+                            {label}
+                          </th>
                         ))}
-                      </tbody>
-                    </table>
-                  )
-                ) : null}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reports.map((r: ProductReport, idx: number) => (
+                        <tr
+                          key={r._id}
+                          onMouseEnter={() => setHoveredRow(r._id)}
+                          onMouseLeave={() => setHoveredRow(null)}
+                          style={{
+                            borderBottom: idx < reports.length - 1 ? '1px solid #f9fafb' : 'none',
+                            backgroundColor: hoveredRow === r._id ? '#f9fafb' : 'transparent',
+                            transition: 'background-color 0.2s',
+                            cursor: 'default'
+                          }}
+                        >
+                          <td style={{ padding: '16px 20px', fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>{r.productName}</td>
+                          <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#374151' }}>{r.storeName}</td>
+                          <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#6b7280', maxWidth: '260px', wordBreak: 'break-word' }}>{r.reason}</td>
+                          <td style={{ padding: '16px 20px', fontSize: '0.875rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{formatShortDate(r.submittedDate)}</td>
+                          <td style={{ padding: '16px 20px' }}>
+                            {r.status !== 'resolved' ? (
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  onClick={() => handleResolveReport(r._id)}
+                                  style={{
+                                    padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
+                                    color: '#fff', backgroundColor: '#16a34a',
+                                    border: 'none', borderRadius: '6px', cursor: 'pointer',
+                                  }}
+                                >
+                                  Resolve
+                                </button>
+                                <button
+                                  onClick={() => handleIgnoreReport(r._id, `Report for ${r.productName}`)}
+                                  style={{
+                                    padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700,
+                                    color: '#6b7280', backgroundColor: '#fff',
+                                    border: '1.5px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer',
+                                  }}
+                                >
+                                  Ignore
+                                </button>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#16a34a', fontStyle: 'italic' }}>
+                                Resolved
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <Pagination
+                    page={pagination.reports.page}
+                    totalPages={pagination.reports.totalPages}
+                    onPageChange={(p) => fetchReports(p)}
+                  />
+                </>
+              )
+            ) : null}
+          </div>
         </div>
-      </div>
 
-      {/* Scroll to Top Button */}
-      {showScroll && (
-        <button
-          onClick={scrollToTop}
-          style={{
-            position: 'fixed',
-            bottom: '32px',
-            right: '32px',
-            width: '50px',
-            height: '50px',
-            borderRadius: '50%',
-            backgroundColor: '#8B1538',
-            color: '#fff',
-            border: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(139,21,56,0.3)',
-            zIndex: 999,
-            transition: 'all 0.2s ease-in-out',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.transform = 'translateY(-5px)';
-            e.currentTarget.style.boxShadow = '0 6px 16px rgba(139,21,56,0.4)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(139,21,56,0.3)';
-          }}
-        >
-          <ArrowUp style={{ width: 24, height: 24, strokeWidth: 3 }} />
-        </button>
-      )}
-
-      {/* ── Confirmation Modal ────────────────────────── */}
-      {
-        confirmModal.show && (
-          <>
-            <div
-              onClick={() => setConfirmModal(p => ({ ...p, show: false }))}
-              style={{
-                position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
-                backdropFilter: 'blur(4px)', zIndex: 1000,
-              }}
-            />
-            <div
-              style={{
-                position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                backgroundColor: '#fff', borderRadius: '16px', padding: '28px',
-                boxShadow: '0 20px 40px rgba(0,0,0,0.15)', zIndex: 1001,
-                width: '100%', maxWidth: '380px', textAlign: 'center',
-              }}
-            >
+        {/* ── Confirmation Modal ────────────────────────── */}
+        {
+          confirmModal.show && (
+            <>
+              <div
+                onClick={() => setConfirmModal(p => ({ ...p, show: false }))}
+                style={{
+                  position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
+                  backdropFilter: 'blur(4px)', zIndex: 1000,
+                }}
+              />
               <div
                 style={{
-                  width: '56px', height: '56px', borderRadius: '50%',
-                  backgroundColor: '#fee2e2', color: '#dc2626',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  margin: '0 auto 16px',
+                  position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                  backgroundColor: '#fff', borderRadius: '16px', padding: '28px',
+                  boxShadow: '0 20px 40px rgba(0,0,0,0.15)', zIndex: 1001,
+                  width: '100%', maxWidth: '380px', textAlign: 'center',
                 }}
               >
-                <X style={{ width: 28, height: 28 }} />
-              </div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>
-                {confirmModal.action === 'delete' ? 'Confirm Deletion'
-                  : confirmModal.action === 'ignore' ? 'Ignore Report'
-                    : 'Confirm Rejection'}
-              </h3>
-              <p style={{ fontSize: '0.9rem', color: '#6b7280', margin: '0 0 24px', lineHeight: 1.5, wordBreak: 'break-word' }}>
-                {confirmModal.type === 'review'
-                  ? 'Are you sure you want to reject this review? This action cannot be undone.'
-                  : confirmModal.type === 'report' && confirmModal.action === 'ignore'
-                    ? <>Are you sure you want to ignore the report for <strong style={{ wordBreak: 'break-all' }}>{confirmModal.name.replace('Report for ', '')}</strong>?</>
-                    : confirmModal.type === 'product' && confirmModal.action === 'delete'
-                      ? <>Are you sure you want to permanently delete <strong style={{ wordBreak: 'break-all' }}>{confirmModal.name}</strong>? This cannot be undone.</>
-                      : <>Are you sure you want to reject <strong style={{ wordBreak: 'break-all' }}>{confirmModal.name}</strong>?</>
-                }
-              </p>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button
-                  onClick={() => setConfirmModal(p => ({ ...p, show: false }))}
+                <div
                   style={{
-                    flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600,
-                    color: '#374151', backgroundColor: '#f3f4f6', border: 'none',
-                    borderRadius: '10px', cursor: 'pointer',
+                    width: '56px', height: '56px', borderRadius: '50%',
+                    backgroundColor: '#fee2e2', color: '#dc2626',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    margin: '0 auto 16px',
                   }}
                 >
-                  Back
-                </button>
-                <button
-                  onClick={executeConfirmedAction}
-                  style={{
-                    flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600,
-                    color: '#fff', backgroundColor: '#dc2626', border: 'none',
-                    borderRadius: '10px', cursor: 'pointer',
-                  }}
-                >
-                  {confirmModal.action === 'delete' ? 'Delete' : 'Confirm'}
-                </button>
-              </div>
-            </div>
-          </>
-        )
-      }
-
-      {/* ── Review Content Detail Modal ── */}
-      {
-        viewReviewModal.show && viewReviewModal.review && (
-          <>
-            <div
-              style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', zIndex: 1100 }}
-              onClick={() => setViewReviewModal({ show: false, review: null })}
-            />
-            <div
-              style={{
-                position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                backgroundColor: '#fff', borderRadius: '20px', padding: '0',
-                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', zIndex: 1101,
-                width: '90%', maxWidth: '600px', maxHeight: '85vh',
-                display: 'flex', flexDirection: 'column', overflow: 'hidden'
-              }}
-            >
-              {/* Header */}
-              <div style={{ padding: '24px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Review Details</h3>
-                  <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>Submitted on {formatFullDateTime(viewReviewModal.review.date)}</p>
+                  <X style={{ width: 28, height: 28 }} />
                 </div>
-                <button
-                  onClick={() => setViewReviewModal({ show: false, review: null })}
-                  style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}
-                >
-                  <X style={{ width: 20, height: 20 }} />
-                </button>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>
+                  {confirmModal.action === 'delete' ? 'Confirm Deletion'
+                    : confirmModal.action === 'ignore' ? 'Ignore Report'
+                      : 'Confirm Rejection'}
+                </h3>
+                <p style={{ fontSize: '0.9rem', color: '#6b7280', margin: '0 0 24px', lineHeight: 1.5, wordBreak: 'break-word' }}>
+                  {confirmModal.type === 'review'
+                    ? 'Are you sure you want to reject this review? This action cannot be undone.'
+                    : confirmModal.type === 'report' && confirmModal.action === 'ignore'
+                      ? <>Are you sure you want to ignore the report for <strong style={{ wordBreak: 'break-all' }}>{confirmModal.name.replace('Report for ', '')}</strong>?</>
+                      : confirmModal.type === 'product' && confirmModal.action === 'delete'
+                        ? <>Are you sure you want to permanently delete <strong style={{ wordBreak: 'break-all' }}>{confirmModal.name}</strong>? This cannot be undone.</>
+                        : <>Are you sure you want to reject <strong style={{ wordBreak: 'break-all' }}>{confirmModal.name}</strong>?</>
+                  }
+                </p>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    onClick={() => setConfirmModal(p => ({ ...p, show: false }))}
+                    style={{
+                      flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600,
+                      color: '#374151', backgroundColor: '#f3f4f6', border: 'none',
+                      borderRadius: '10px', cursor: 'pointer',
+                    }}
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={executeConfirmedAction}
+                    style={{
+                      flex: 1, padding: '12px', fontSize: '0.875rem', fontWeight: 600,
+                      color: '#fff', backgroundColor: '#dc2626', border: 'none',
+                      borderRadius: '10px', cursor: 'pointer',
+                    }}
+                  >
+                    {confirmModal.action === 'delete' ? 'Delete' : 'Confirm'}
+                  </button>
+                </div>
               </div>
+            </>
+          )
+        }
 
-              {/* Scrollable Content */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                  <div style={{ width: 44, height: 44, borderRadius: '50%', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <User style={{ width: 22, height: 22, color: '#9ca3af' }} />
-                  </div>
+        {/* ── Review Content Detail Modal ── */}
+        {
+          viewReviewModal.show && viewReviewModal.review && (
+            <>
+              <div
+                style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', zIndex: 1100 }}
+                onClick={() => setViewReviewModal({ show: false, review: null })}
+              />
+              <div
+                style={{
+                  position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                  backgroundColor: '#fff', borderRadius: '20px', padding: '0',
+                  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', zIndex: 1101,
+                  width: '90%', maxWidth: '600px', maxHeight: '85vh',
+                  display: 'flex', flexDirection: 'column', overflow: 'hidden'
+                }}
+              >
+                {/* Header */}
+                <div style={{ padding: '24px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <p style={{ fontWeight: 700, fontSize: '1rem', color: '#111827', margin: '0 0 2px' }}>Anonymous User</p>
-                    <div style={{ display: 'flex', gap: '2px' }}>
-                      {[1, 2, 3, 4, 5].map(s => (
-                        <Star
-                          key={s}
-                          style={{ width: 16, height: 16, fill: s <= viewReviewModal.review.rating ? '#facc15' : '#e5e7eb', color: s <= viewReviewModal.review.rating ? '#facc15' : '#e5e7eb' }}
-                        />
-                      ))}
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Review Details</h3>
+                    <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>Submitted on {formatFullDateTime(viewReviewModal.review.date)}</p>
+                  </div>
+                  <button
+                    onClick={() => setViewReviewModal({ show: false, review: null })}
+                    style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}
+                  >
+                    <X style={{ width: 20, height: 20 }} />
+                  </button>
+                </div>
+
+                {/* Scrollable Content */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                    <div style={{ width: 44, height: 44, borderRadius: '50%', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <User style={{ width: 22, height: 22, color: '#9ca3af' }} />
                     </div>
-                  </div>
-                </div>
-
-                <div style={{ backgroundColor: '#f9fafb', padding: '16px', borderRadius: '12px', border: '1px solid #f3f4f6', marginBottom: '24px' }}>
-                  <p style={{ fontSize: '1rem', color: '#374151', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                    {viewReviewModal.review.text}
-                  </p>
-                </div>
-
-                {viewReviewModal.review.images && viewReviewModal.review.images.length > 0 && (
-                  <div>
-                    <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '12px' }}>Attached Photos</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {viewReviewModal.review.images.map((img: any, i: number) => {
-                        const url = (typeof img === 'string' ? img : img?.url) || 'https://placehold.co/400x400?text=Missing+Image';
-                        return (
-                          <img
-                            key={i} src={url} alt="Full view"
-                            style={{ width: '100%', borderRadius: '12px', border: '1px solid #e5e7eb', maxHeight: '400px', objectFit: 'contain', backgroundColor: '#fafafa' }}
-                            onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=Image+Load+Error')}
+                    <div>
+                      <p style={{ fontWeight: 700, fontSize: '1rem', color: '#111827', margin: '0 0 2px' }}>Anonymous User</p>
+                      <div style={{ display: 'flex', gap: '2px' }}>
+                        {[1, 2, 3, 4, 5].map(s => (
+                          <Star
+                            key={s}
+                            style={{ width: 16, height: 16, fill: s <= viewReviewModal.review.rating ? '#facc15' : '#e5e7eb', color: s <= viewReviewModal.review.rating ? '#facc15' : '#e5e7eb' }}
                           />
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Actions Footer */}
-              <div style={{ padding: '24px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: '12px', justifyContent: 'flex-end', backgroundColor: '#fafafa' }}>
-                <button
-                  onClick={() => {
-                    handleApproveReview(viewReviewModal.review._id);
-                    setViewReviewModal({ show: false, review: null });
-                  }}
-                  style={{
-                    padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
-                    color: '#fff', backgroundColor: '#16a34a',
-                    border: 'none', borderRadius: '10px', cursor: 'pointer',
-                    minWidth: '120px'
-                  }}
-                >
-                  Approve
-                </button>
-                <button
-                  onClick={() => {
-                    handleRejectReview(viewReviewModal.review._id, viewReviewModal.review.userName);
-                    setViewReviewModal({ show: false, review: null });
-                  }}
-                  style={{
-                    padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
-                    color: '#dc2626', backgroundColor: '#fff',
-                    border: '1.5px solid #dc2626', borderRadius: '10px', cursor: 'pointer',
-                    minWidth: '120px'
-                  }}
-                >
-                  Reject
-                </button>
-              </div>
-            </div>
-          </>
-        )
-      }
-
-      {/* ── Product Content Detail Modal ── */}
-      {
-        viewProductModal.show && viewProductModal.product && (
-          <>
-            <div
-              style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', zIndex: 1100 }}
-              onClick={() => setViewProductModal({ show: false, product: null })}
-            />
-            <div
-              style={{
-                position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                backgroundColor: '#fff', borderRadius: '20px', padding: '0',
-                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', zIndex: 1101,
-                width: '90%', maxWidth: '600px', maxHeight: '85vh',
-                display: 'flex', flexDirection: 'column', overflow: 'hidden'
-              }}
-            >
-              {/* Header */}
-              <div style={{ padding: '24px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Product Details</h3>
-                  <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>Submitted on {formatFullDateTime(viewProductModal.product.submittedDate)}</p>
-                </div>
-                <button
-                  onClick={() => setViewProductModal({ show: false, product: null })}
-                  style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}
-                >
-                  <X style={{ width: 20, height: 20 }} />
-                </button>
-              </div>
-
-              {/* Scrollable Content */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-                <div style={{ backgroundColor: '#f9fafb', padding: '24px', borderRadius: '16px', border: '1px solid #f3f4f6', marginBottom: '24px' }}>
-                  <h4 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#111827', margin: '0 0 16px', wordBreak: 'break-word' }}>{viewProductModal.product.name}</h4>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                    <div>
-                      <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Store Location</p>
-                      <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0d9488', margin: 0 }}>{viewProductModal.product.prices?.[0]?.storeName}</p>
-                    </div>
-                    <div>
-                      <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Current Price</p>
-                      <p style={{ fontSize: '1.1rem', fontWeight: 800, color: '#8B1538', margin: 0 }}>₱{(viewProductModal.product.prices?.[0]?.price || 0).toFixed(2)}</p>
-                    </div>
-                    <div style={{ gridColumn: 'span 2' }}>
-                      <div style={{ height: '1px', backgroundColor: '#f3f4f6', margin: '4px 0 16px' }} />
-                    </div>
-                    <div>
-                      <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Submitted By</p>
-                      <p style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111827', margin: 0 }}>Anonymous User</p>
-                    </div>
-                    <div>
-                      <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Crowd Level reported</p>
-                      <div style={{ marginTop: '2px' }}>
-                        {(() => {
-                          const lvl = viewProductModal.product.crowdLevel;
-                          if (!lvl || lvl === 'not_sure') return <span style={{ fontSize: '0.85rem', color: '#6b7280', fontStyle: 'italic' }}>Not Sure</span>;
-                          const config = crowdConfig[lvl as 'low' | 'medium' | 'high'];
-                          if (!config) return <span style={{ fontSize: '0.85rem', color: '#6b7280', fontStyle: 'italic' }}>Not Sure</span>;
-                          return (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: '4px',
-                              fontSize: '0.72rem', fontWeight: 700,
-                              color: config.color,
-                              backgroundColor: config.bg,
-                              borderRadius: '999px', padding: '3px 10px',
-                            }}>
-                              <Users style={{ width: 12, height: 12 }} />
-                              {config.label}
-                            </span>
-                          );
-                        })()}
+                        ))}
                       </div>
                     </div>
                   </div>
+
+                  <div style={{ backgroundColor: '#f9fafb', padding: '16px', borderRadius: '12px', border: '1px solid #f3f4f6', marginBottom: '24px' }}>
+                    <p style={{ fontSize: '1rem', color: '#374151', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                      {viewReviewModal.review.text}
+                    </p>
+                  </div>
+
+                  {viewReviewModal.review.images && viewReviewModal.review.images.length > 0 && (
+                    <div>
+                      <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '12px' }}>Attached Photos</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {viewReviewModal.review.images.map((img: any, i: number) => {
+                          const url = (typeof img === 'string' ? img : img?.url) || 'https://placehold.co/400x400?text=Missing+Image';
+                          return (
+                            <img
+                              key={i} src={url} alt="Full view"
+                              style={{ width: '100%', borderRadius: '12px', border: '1px solid #e5e7eb', maxHeight: '400px', objectFit: 'contain', backgroundColor: '#fafafa' }}
+                              onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x400?text=Image+Load+Error')}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div>
-                  <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '12px', marginLeft: '4px' }}>Image</p>
-                  <img
-                    src={viewProductModal.product.image || 'https://placehold.co/400x400?text=No+Image'}
-                    alt="Product Full"
-                    style={{ width: '100%', borderRadius: '16px', border: '1px solid #e5e7eb', maxHeight: '400px', objectFit: 'contain', backgroundColor: '#fafafa' }}
-                    onError={(e) => e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available'}
-                  />
+                {/* Actions Footer */}
+                <div style={{ padding: '24px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: '12px', justifyContent: 'flex-end', backgroundColor: '#fafafa' }}>
+                  <button
+                    onClick={() => {
+                      handleApproveReview(viewReviewModal.review._id);
+                      setViewReviewModal({ show: false, review: null });
+                    }}
+                    style={{
+                      padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
+                      color: '#fff', backgroundColor: '#16a34a',
+                      border: 'none', borderRadius: '10px', cursor: 'pointer',
+                      minWidth: '120px'
+                    }}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleRejectReview(viewReviewModal.review._id, viewReviewModal.review.userName);
+                      setViewReviewModal({ show: false, review: null });
+                    }}
+                    style={{
+                      padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
+                      color: '#dc2626', backgroundColor: '#fff',
+                      border: '1.5px solid #dc2626', borderRadius: '10px', cursor: 'pointer',
+                      minWidth: '120px'
+                    }}
+                  >
+                    Reject
+                  </button>
                 </div>
               </div>
+            </>
+          )
+        }
 
-              {/* Actions Footer */}
-              <div style={{ padding: '24px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: '12px', justifyContent: 'flex-end', backgroundColor: '#fafafa' }}>
-                <button
-                  onClick={() => {
-                    handleApproveProduct(viewProductModal.product._id);
-                    setViewProductModal({ show: false, product: null });
-                  }}
-                  style={{
-                    padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
-                    color: '#fff', backgroundColor: '#16a34a',
-                    border: 'none', borderRadius: '10px', cursor: 'pointer',
-                    minWidth: '120px'
-                  }}
-                >
-                  Approve
-                </button>
-                <button
-                  onClick={() => {
-                    handleRejectProduct(viewProductModal.product._id, viewProductModal.product.name);
-                    setViewProductModal({ show: false, product: null });
-                  }}
-                  style={{
-                    padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
-                    color: '#dc2626', backgroundColor: '#fff',
-                    border: '1.5px solid #dc2626', borderRadius: '10px', cursor: 'pointer',
-                    minWidth: '120px'
-                  }}
-                >
-                  Reject
-                </button>
+        {/* ── Product Content Detail Modal ── */}
+        {
+          viewProductModal.show && viewProductModal.product && (
+            <>
+              <div
+                style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', zIndex: 1100 }}
+                onClick={() => setViewProductModal({ show: false, product: null })}
+              />
+              <div
+                style={{
+                  position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                  backgroundColor: '#fff', borderRadius: '20px', padding: '0',
+                  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', zIndex: 1101,
+                  width: '90%', maxWidth: '600px', maxHeight: '85vh',
+                  display: 'flex', flexDirection: 'column', overflow: 'hidden'
+                }}
+              >
+                {/* Header */}
+                <div style={{ padding: '24px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Product Details</h3>
+                    <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>Submitted on {formatFullDateTime(viewProductModal.product.submittedDate)}</p>
+                  </div>
+                  <button
+                    onClick={() => setViewProductModal({ show: false, product: null })}
+                    style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}
+                  >
+                    <X style={{ width: 20, height: 20 }} />
+                  </button>
+                </div>
+
+                {/* Scrollable Content */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+                  <div style={{ backgroundColor: '#f9fafb', padding: '24px', borderRadius: '16px', border: '1px solid #f3f4f6', marginBottom: '24px' }}>
+                    <h4 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#111827', margin: '0 0 16px', wordBreak: 'break-word' }}>{viewProductModal.product.name}</h4>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                      <div>
+                        <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Store Location</p>
+                        <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0d9488', margin: 0 }}>{viewProductModal.product.prices?.[0]?.storeName}</p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Current Price</p>
+                        <p style={{ fontSize: '1.1rem', fontWeight: 800, color: '#8B1538', margin: 0 }}>₱{(viewProductModal.product.prices?.[0]?.price || 0).toFixed(2)}</p>
+                      </div>
+                      <div style={{ gridColumn: 'span 2' }}>
+                        <div style={{ height: '1px', backgroundColor: '#f3f4f6', margin: '4px 0 16px' }} />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Submitted By</p>
+                        <p style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111827', margin: 0 }}>Anonymous User</p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.025em', margin: '0 0 4px' }}>Crowd Level reported</p>
+                        <div style={{ marginTop: '2px' }}>
+                          {(() => {
+                            const lvl = viewProductModal.product.crowdLevel;
+                            if (!lvl || lvl === 'not_sure') return <span style={{ fontSize: '0.85rem', color: '#6b7280', fontStyle: 'italic' }}>Not Sure</span>;
+                            const config = crowdConfig[lvl as 'low' | 'medium' | 'high'];
+                            if (!config) return <span style={{ fontSize: '0.85rem', color: '#6b7280', fontStyle: 'italic' }}>Not Sure</span>;
+                            return (
+                              <span style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                fontSize: '0.72rem', fontWeight: 700,
+                                color: config.color,
+                                backgroundColor: config.bg,
+                                borderRadius: '999px', padding: '3px 10px',
+                              }}>
+                                <Users style={{ width: 12, height: 12 }} />
+                                {config.label}
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '12px', marginLeft: '4px' }}>Image</p>
+                    <img
+                      src={viewProductModal.product.image || 'https://placehold.co/400x400?text=No+Image'}
+                      alt="Product Full"
+                      style={{ width: '100%', borderRadius: '16px', border: '1px solid #e5e7eb', maxHeight: '400px', objectFit: 'contain', backgroundColor: '#fafafa' }}
+                      onError={(e) => e.currentTarget.src = 'https://placehold.co/400x400?text=No+Image+Available'}
+                    />
+                  </div>
+                </div>
+
+                {/* Actions Footer */}
+                <div style={{ padding: '24px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: '12px', justifyContent: 'flex-end', backgroundColor: '#fafafa' }}>
+                  <button
+                    onClick={() => {
+                      handleApproveProduct(viewProductModal.product._id);
+                      setViewProductModal({ show: false, product: null });
+                    }}
+                    style={{
+                      padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
+                      color: '#fff', backgroundColor: '#16a34a',
+                      border: 'none', borderRadius: '10px', cursor: 'pointer',
+                      minWidth: '120px'
+                    }}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleRejectProduct(viewProductModal.product._id, viewProductModal.product.name);
+                      setViewProductModal({ show: false, product: null });
+                    }}
+                    style={{
+                      padding: '10px 24px', fontSize: '0.875rem', fontWeight: 700,
+                      color: '#dc2626', backgroundColor: '#fff',
+                      border: '1.5px solid #dc2626', borderRadius: '10px', cursor: 'pointer',
+                      minWidth: '120px'
+                    }}
+                  >
+                    Reject
+                  </button>
+                </div>
               </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
 
-      {/* ── Add Store Modal ── */}
-      <AddStoreModal
-        isOpen={showAddStore}
-        onClose={() => setShowAddStore(false)}
-        onAdd={addStore}
-      />
-      {/* Scroll to Top Button */}
-      {showScroll && (
-        <button
-          onClick={scrollToTop}
-          style={{
-            position: 'fixed',
-            bottom: '32px',
-            right: '32px',
-            width: '50px',
-            height: '50px',
-            borderRadius: '50%',
-            backgroundColor: '#8B1538',
-            color: '#fff',
-            border: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(139,21,56,0.3)',
-            zIndex: 150,
-            transition: 'all 0.2s ease-in-out',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.transform = 'translateY(-5px)';
-            e.currentTarget.style.boxShadow = '0 6px 16px rgba(139,21,56,0.4)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(139,21,56,0.3)';
-          }}
-        >
-          <ArrowUp style={{ width: 24, height: 24, strokeWidth: 3 }} />
-        </button>
-      )}
-    </div>
+        {/* ── Add Store Modal ── */}
+        <AddStoreModal
+          isOpen={showAddStore}
+          onClose={() => setShowAddStore(false)}
+          onAdd={addStore}
+        />
+      </div>
+    </>
   );
 }
 
@@ -1351,19 +1354,40 @@ function AddStoreModal({ isOpen, onClose, onAdd }: AddStoreModalProps) {
 
     const timeFormat = /^((1[0-2]|[1-9]):[0-5][0-9](AM|PM)?)-((1[0-2]|[1-9]):[0-5][0-9](AM|PM))$/;
 
-    if (form.operatingHours.trim() && form.operatingHours.trim() !== 'Open 24 hours' && !timeFormat.test(form.operatingHours.trim())) {
-      toast.error('Operating Hours must be "Open 24 hours" or in the format 6:00AM-10:00PM');
-      return;
+    if (form.operatingHours.trim() && form.operatingHours.trim() !== 'Open 24 hours') {
+      if (!timeFormat.test(form.operatingHours.trim())) {
+        toast.error('Operating Hours must be strictly "Open 24 hours" or a time range in the format HH:MMAM–HH:MMPM!');
+        return;
+      }
+      const [start, end] = form.operatingHours.trim().split('-');
+      if (start.trim() === end.trim()) {
+        toast.error('Operating Hours start and end time cannot be the same!');
+        return;
+      }
     }
 
-    if (form.peakHours.trim() && !timeFormat.test(form.peakHours.trim())) {
-      toast.error('Peak Hour must be in the format 9:00-10:00AM (12-hour, case-sensitive AM/PM)');
-      return;
+    if (form.peakHours.trim()) {
+      if (!timeFormat.test(form.peakHours.trim())) {
+        toast.error('Peak Hour must be in the format 9:00-10:00AM (12-hour, case-sensitive AM/PM)!');
+        return;
+      }
+      const [start, end] = form.peakHours.trim().split('-');
+      if (start.trim() === end.trim()) {
+        toast.error('Peak Hour start and end time cannot be the same!');
+        return;
+      }
     }
 
-    if (form.offPeakHours.trim() && !timeFormat.test(form.offPeakHours.trim())) {
-      toast.error('Off-Peak Hour must be in the format 1:00-2:00PM (12-hour, case-sensitive AM/PM)');
-      return;
+    if (form.offPeakHours.trim()) {
+      if (!timeFormat.test(form.offPeakHours.trim())) {
+        toast.error('Off-Peak Hour must be in the format 1:00-2:00PM (12-hour, case-sensitive AM/PM)!');
+        return;
+      }
+      const [start, end] = form.offPeakHours.trim().split('-');
+      if (start.trim() === end.trim()) {
+        toast.error('Off-Peak Hour start and end time cannot be the same!');
+        return;
+      }
     }
 
     if (form.peakHours.trim() && form.offPeakHours.trim() && form.peakHours.trim() === form.offPeakHours.trim()) {

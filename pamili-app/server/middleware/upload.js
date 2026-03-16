@@ -49,6 +49,13 @@ const uploadToCloudinary = (buffer, folder = 'pamili') => {
  * @param {String} public_id - The public ID of the resource
  * @returns {Promise}
  */
+// NO-OP VERSION: Prevents accidental deletion from Cloudinary during testing
+const deleteFromCloudinary = async (public_id) => {
+  console.log('Skipping Cloudinary deletion for public_id:', public_id);
+  return;
+};
+
+/* Original Deletion Logic (Commented Out):
 const deleteFromCloudinary = async (public_id) => {
   if (!public_id) return;
   try {
@@ -57,6 +64,7 @@ const deleteFromCloudinary = async (public_id) => {
     console.error('Cloudinary destruction error:', error);
   }
 };
+*/
 
 module.exports = {
   upload,
