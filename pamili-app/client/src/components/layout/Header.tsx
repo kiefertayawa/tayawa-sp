@@ -148,7 +148,7 @@ export default function Header({ onCartClick, onSubmitClick }: HeaderProps) {
               />
               <input
                 type="text"
-                placeholder="Search for products (e.g. egg, toothpaste, water)..."
+                placeholder="Search for products (e.g. sardines, water, deodorant)..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}

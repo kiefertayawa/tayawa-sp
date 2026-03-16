@@ -54,7 +54,7 @@ import { Toaster } from 'sonner';
 export default function App() {
   return (
     <BrowserRouter>
-      <Toaster position="top-right" richColors toastOptions={{ style: { marginTop: '72px' } }} />
+      <Toaster position="top-right" richColors duration={2500} toastOptions={{ style: { marginTop: '72px' } }} />
       <AuthProvider>
         <CartProvider>
           <AppLayout />

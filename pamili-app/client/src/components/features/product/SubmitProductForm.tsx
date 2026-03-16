@@ -451,7 +451,7 @@ export default function SubmitProductForm({ isOpen, onClose }: SubmitProductForm
                 {
                   [
                     'Ensure the price is updated and accurate.',
-                    'Using a direct image link helps fellow users to see the product.',
+                    'Using a clear photo helps fellow users to identify the product.',
                     'Your verification of the crowd level helps update the store\'s live status.',
                     'All submissions will be reviewed by administrators.',
                   ].map(tip => (

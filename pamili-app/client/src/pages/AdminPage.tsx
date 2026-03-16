@@ -1278,7 +1278,7 @@ export default function AdminPage() {
             justifyContent: 'center',
             cursor: 'pointer',
             boxShadow: '0 4px 12px rgba(139,21,56,0.3)',
-            zIndex: 1000,
+            zIndex: 150,
             transition: 'all 0.2s ease-in-out',
           }}
           onMouseEnter={e => {

@@ -121,7 +121,7 @@ export default function HomePage() {
           <h2 style={{ fontWeight: 700, fontSize: '1.55rem', color: '#8B1538', margin: '0 0 5px' }}>
             Stores in Batong Malake
           </h2>
-          <p style={{ fontSize: '1rem', color: '#6b7280', margin: 0 }}>
+          <p style={{ fontSize: '1rem', color: '#6b7280', margin: 0, marginBottom: '22px' }}>
             Compare prices and{' '}
             <span style={{ color: '#014421', fontWeight: 600 }}>find the best deals</span>
             {' '}near you!
@@ -339,7 +339,7 @@ export default function HomePage() {
             justifyContent: 'center',
             cursor: 'pointer',
             boxShadow: '0 4px 12px rgba(139,21,56,0.3)',
-            zIndex: 1000,
+            zIndex: 150,
             transition: 'all 0.2s ease-in-out',
           }}
           onMouseEnter={e => {

@@ -52,7 +52,7 @@ textarea {
 
 /* ── Sonner Toast Speed Override ─────────────────────────── */
 [data-sonner-toaster] {
-  --sonner-transition-duration: 200ms !important;
+  --sonner-transition-duration: 80ms !important;
 }
 
 
@@ -167,4 +167,41 @@ textarea {
   pointer-events: none;
   letter-spacing: 0.01em;
   transition: background 0.2s;
+}
+
+/* ── Global Animations ───────────────────────────────────── */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@-webkit-keyframes spin {
+  from {
+    -webkit-transform: rotate(0deg);
+  }
+  to {
+    -webkit-transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@-webkit-keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
