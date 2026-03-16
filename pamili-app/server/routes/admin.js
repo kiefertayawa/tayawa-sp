@@ -87,18 +87,18 @@ router.get('/products', auth, async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const total = await Product.countDocuments();
+    const total = await Product.countDocuments({ status: { $ne: 'rejected' } });
     const products = await Product.aggregate([
+      { $match: { status: { $ne: 'rejected' } } },
       {
         $addFields: {
           statusPriority: {
             $switch: {
               branches: [
                 { case: { $eq: ['$status', 'pending'] }, then: 0 },
-                { case: { $eq: ['$status', 'approved'] }, then: 1 },
-                { case: { $eq: ['$status', 'rejected'] }, then: 2 }
+                { case: { $eq: ['$status', 'approved'] }, then: 1 }
               ],
-              default: 3
+              default: 2
             }
           }
         }
@@ -354,19 +354,18 @@ router.get('/reviews/pending', auth, async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const total = await Review.countDocuments({ status: { $ne: 'rejected' } });
+    const total = await Review.countDocuments({ status: { $in: ['pending', 'approved'] } });
     const reviews = await Review.aggregate([
-      { $match: { status: { $ne: 'rejected' } } },
+      { $match: { status: { $in: ['pending', 'approved'] } } },
       {
         $addFields: {
           statusPriority: {
             $switch: {
               branches: [
                 { case: { $eq: ['$status', 'pending'] }, then: 0 },
-                { case: { $eq: ['$status', 'approved'] }, then: 1 },
-                { case: { $eq: ['$status', 'rejected'] }, then: 2 }
+                { case: { $eq: ['$status', 'approved'] }, then: 1 }
               ],
-              default: 3
+              default: 2
             }
           }
         }
@@ -458,8 +457,9 @@ router.get('/reports', auth, async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const total = await Report.countDocuments();
+    const total = await Report.countDocuments({ status: { $in: ['pending', 'resolved'] } });
     const reports = await Report.aggregate([
+      { $match: { status: { $in: ['pending', 'resolved'] } } },
       {
         $addFields: {
           statusPriority: {
